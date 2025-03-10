@@ -182,13 +182,9 @@ def get_initial_priority_queue(
     return priority_queue
 
 
-def tree_voxel_thingi(
-    mesh,
-    max_num_boxes,
-    importance_function,
-    skip_function,
-    allowed_refinements=[ba.bitarray("111")],
-) -> dyada.refinement.Discretization:
+def get_initial_tree_and_queue(
+    mesh: trimesh.Geometry, importance_function, allowed_refinements
+):
     discretization = dyada.refinement.Discretization(
         dyada.linearization.MortonOrderLinearization(),
         dyada.refinement.RefinementDescriptor(3, 1),
@@ -197,6 +193,20 @@ def tree_voxel_thingi(
         discretization,
         mesh,
         importance_function,
+        allowed_refinements,
+    )
+    return discretization, priority_queue
+
+
+def tree_voxel_thingi(
+    mesh: trimesh.Geometry,
+    max_num_boxes: int,
+    importance_function,
+    skip_function,
+    allowed_refinements=[ba.bitarray("111")],
+) -> dyada.refinement.Discretization:
+    discretization, priority_queue = get_initial_tree_and_queue(
+        mesh, importance_function, allowed_refinements
     )
 
     # grow the tree until the desired number of boxes is reached
@@ -242,7 +252,7 @@ def tree_voxel_thingi(
             break
 
     ic(len(discretization))
-    return discretization
+    return discretization, priority_queue
 
 
 def get_binary_discretization_occupancy(
@@ -323,7 +333,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "allowed_tree_boxes",
         type=int,
-        help="number of boxes allowed in tree descriptors",
+        help="number of boxes allowed in tree descriptors, or a range of them",
     )
     parser.add_argument(
         "--sobol_samples",
@@ -338,8 +348,8 @@ if __name__ == "__main__":
         default="0/2048",
     )
     args = parser.parse_args()
-    
-    parsed_slice = args.slice.split('/')
+
+    parsed_slice = args.slice.split("/")
     assert len(parsed_slice) == 2
     my_slice = int(parsed_slice[0])
     num_slices = int(parsed_slice[1])
@@ -356,7 +366,11 @@ if __name__ == "__main__":
     )
     chunk_size = len(subset) / num_slices
     ic(len(subset["file_id"]))
-    subset = thingi10k.dataset(file_id = subset["file_id"][round(my_slice * chunk_size):round((my_slice+1) * chunk_size)])
+    subset = thingi10k.dataset(
+        file_id=subset["file_id"][
+            round(my_slice * chunk_size) : round((my_slice + 1) * chunk_size)
+        ]
+    )
     num_my_thingies = len(subset["file_id"])
     ic(num_my_thingies)
     ic(subset)
@@ -370,7 +384,7 @@ if __name__ == "__main__":
             continue
         mesh = mesh_to_unit_cube(mesh)
         plot_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
-        discretization_octree = tree_voxel_thingi(
+        discretization_octree, queue_octree = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
             functools.partial(
@@ -388,7 +402,7 @@ if __name__ == "__main__":
         )
         assert len(binary_discretization_occupancy_octree) == len(discretization_octree)
 
-        discretization_omnitree_1 = tree_voxel_thingi(
+        discretization_omnitree_1, queue_omnitree_1 = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
             functools.partial(
@@ -415,7 +429,7 @@ if __name__ == "__main__":
             discretization_omnitree_1
         )
 
-        discretization_omnitree_2 = tree_voxel_thingi(
+        discretization_omnitree_2, queue_omnitree_2 = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
             functools.partial(
