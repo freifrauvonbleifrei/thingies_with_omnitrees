@@ -67,14 +67,14 @@ def get_number_of_mesh_points_inside_interval(
 
 
 @functools.cache
-def get_unit_cube_sa_problem():
+def get_unit_cube_sa_problem(num_sobol_samples: int):
     # cf. https://salib.readthedocs.io/en/latest/user_guide/basics.html#an-example
     problem = {
         "num_vars": 3,
         "names": ["x0", "x1", "x2"],
         "bounds": [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
     }
-    param_values = saltelli.sample(problem, 32)
+    param_values = saltelli.sample(problem, num_sobol_samples)
     return problem, param_values
 
 
@@ -82,8 +82,9 @@ def get_sobol_importances(
     mesh: trimesh.Geometry,
     interval: dyada.coordinates.CoordinateInterval,
     refinements: list[ba.bitarray],
+    num_sobol_samples: int,
 ):
-    problem, sampling_points_unit_cube = get_unit_cube_sa_problem()
+    problem, sampling_points_unit_cube = get_unit_cube_sa_problem(num_sobol_samples)
     # transform the sampling points to the current interval
     extent = interval.upper_bound - interval.lower_bound
     sampling_points_transformed = (
