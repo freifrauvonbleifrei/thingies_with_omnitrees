@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse as arg
 import bitarray as ba
 import functools
 import numpy as np
@@ -313,6 +314,18 @@ def plot_with_pyplot(mesh, filename=None):
 
 
 if __name__ == "__main__":
+    parser = arg.ArgumentParser()
+    parser.add_argument(
+        "allowed_tree_boxes", type=int, help="number of boxes allowed in tree descriptors"
+    )
+    parser.add_argument(
+        "--sobol_samples",
+        type=int,
+        help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
+        default=64,
+    )
+    args = parser.parse_args()
+
     thingi10k.init(variant="raw")
     # select thingi meshes by closedness, having at most 10000 vertices, etc.
     # print(help(thingi10k.dataset))
@@ -324,7 +337,7 @@ if __name__ == "__main__":
     )
     print(len(subset))
 
-    allowed_tree_boxes = 512
+    allowed_tree_boxes = args.allowed_tree_boxes
     # randomly sample three thingies and display them
     for thingi in np.random.choice(
         subset,
@@ -339,7 +352,9 @@ if __name__ == "__main__":
         discretization_octree = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
-            get_sobol_importances,
+            functools.partial(
+                get_sobol_importances, num_sobol_samples=args.sobol_samples
+            ),
             skip_function_no_importance,
         )
         binary_discretization_occupancy_octree = get_binary_discretization_occupancy(
@@ -355,7 +370,9 @@ if __name__ == "__main__":
         discretization_omnitree_1 = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
-            get_sobol_importances,
+            functools.partial(
+                get_sobol_importances, num_sobol_samples=args.sobol_samples
+            ),
             skip_function_no_importance,
             allowed_refinements=[
                 ba.bitarray("100"),
@@ -380,7 +397,9 @@ if __name__ == "__main__":
         discretization_omnitree_2 = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
-            get_sobol_importances,
+            functools.partial(
+                get_sobol_importances, num_sobol_samples=args.sobol_samples
+            ),
             skip_function_no_importance,
             allowed_refinements=[
                 ba.bitarray("110"),
@@ -410,7 +429,14 @@ if __name__ == "__main__":
         # dyada.drawing.plot_all_boxes_3d(discretization_octree, labels=None, wireframe=True, filename="thingi_octree")
         ic(mesh_from_octree)
         if not mesh_from_octree.is_empty:
-            plot_with_pyplot(mesh_from_octree, str(thingi["thing_id"]) + "_octree")
+            plot_with_pyplot(
+                mesh_from_octree,
+                str(thingi["thing_id"])
+                + "_octree_"
+                + str(allowed_tree_boxes)
+                + "_s"
+                + str(args.sobol_samples),
+            )
 
         mesh_from_omnitree_1 = get_mesh_from_discretization(
             discretization_omnitree_1, binary_discretization_occupancy_omnitree_1
@@ -420,7 +446,12 @@ if __name__ == "__main__":
         ic(mesh_from_omnitree_1)
         if not mesh_from_omnitree_1.is_empty:
             plot_with_pyplot(
-                mesh_from_omnitree_1, str(thingi["thing_id"]) + "_omnitree_1"
+                mesh_from_omnitree_1,
+                str(thingi["thing_id"])
+                + "_omnitree_1_"
+                + str(allowed_tree_boxes)
+                + "_s"
+                + str(args.sobol_samples),
             )
 
         mesh_from_omnitree_2 = get_mesh_from_discretization(
@@ -431,5 +462,11 @@ if __name__ == "__main__":
         ic(mesh_from_omnitree_2)
         if not mesh_from_omnitree_2.is_empty:
             plot_with_pyplot(
-                mesh_from_omnitree_2, str(thingi["thing_id"]) + "_omnitree_2"
+                mesh_from_omnitree_2,
+                str(thingi["thing_id"])
+                + "_omnitree_2_"
+                + str(allowed_tree_boxes)
+                + "_s"
+                + str(args.sobol_samples),
             )
+
