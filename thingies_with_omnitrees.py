@@ -42,9 +42,10 @@ def get_monte_carlo_l1_error(
     mesh: trimesh.Geometry,
     discretization: dyada.refinement.Discretization,
     binary_discretization_occupancy: np.ndarray,
+    num_samples: int = 10000,
 ) -> float:
-    # generate 10000 random points in the unit cube
-    points = np.random.rand(10000, 3)
+    # generate random points in the unit cube
+    points = np.random.rand(num_samples, 3)
 
     is_inside_mesh = check_inside_or_outside_mesh(mesh, points)
     is_inside_tree = check_inside_or_outside_tree(
@@ -187,7 +188,7 @@ def tree_voxel_thingi(
     importance_function,
     skip_function,
     allowed_refinements=[ba.bitarray("111")],
-) -> tuple[dyada.refinement.Discretization, np.array]:
+) -> dyada.refinement.Discretization:
     discretization = dyada.refinement.Discretization(
         dyada.linearization.MortonOrderLinearization(),
         dyada.refinement.RefinementDescriptor(3, 1),
@@ -245,7 +246,9 @@ def tree_voxel_thingi(
 
 
 def get_binary_discretization_occupancy(
-    discretization: dyada.refinement.Discretization, mesh
+    discretization: dyada.refinement.Discretization,
+    mesh: trimesh.Geometry,
+    num_samples: int = 1024,
 ):
     binary_discretization_occupancy = np.zeros(len(discretization), dtype=bool)
     for box_index in range(len(discretization)):
@@ -254,7 +257,8 @@ def get_binary_discretization_occupancy(
         )
         # get random points in the interval
         random_points_in_interval = (
-            np.random.rand(256, 3) * (interval.upper_bound - interval.lower_bound)
+            np.random.rand(num_samples, 3)
+            * (interval.upper_bound - interval.lower_bound)
             + interval.lower_bound
         )
         if np.mean(check_inside_or_outside_mesh(mesh, random_points_in_interval)) > 0.5:
@@ -297,7 +301,7 @@ def get_mesh_from_discretization(discretization, binary_discretization_occupancy
     return trimesh.util.concatenate(list_of_boxes)
 
 
-def plot_with_pyplot(mesh, filename=None):
+def plot_with_pyplot(mesh: trimesh.Geometry, filename=None):
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
     ax.view_init(azim=220, share=True)
@@ -317,7 +321,9 @@ def plot_with_pyplot(mesh, filename=None):
 if __name__ == "__main__":
     parser = arg.ArgumentParser()
     parser.add_argument(
-        "allowed_tree_boxes", type=int, help="number of boxes allowed in tree descriptors"
+        "allowed_tree_boxes",
+        type=int,
+        help="number of boxes allowed in tree descriptors",
     )
     parser.add_argument(
         "--sobol_samples",
@@ -429,15 +435,16 @@ if __name__ == "__main__":
         ic(np.sum(binary_discretization_occupancy_octree))
         # dyada.drawing.plot_all_boxes_3d(discretization_octree, labels=None, wireframe=True, filename="thingi_octree")
         ic(mesh_from_octree)
+        filename_octree = (
+            str(thingi["thing_id"])
+            + "_octree_"
+            + str(allowed_tree_boxes)
+            + "_s"
+            + str(args.sobol_samples)
+        )
         if not mesh_from_octree.is_empty:
-            plot_with_pyplot(
-                mesh_from_octree,
-                str(thingi["thing_id"])
-                + "_octree_"
-                + str(allowed_tree_boxes)
-                + "_s"
-                + str(args.sobol_samples),
-            )
+            plot_with_pyplot(mesh_from_octree, filename_octree)
+        discretization_octree.descriptor.to_file(filename_octree)
 
         mesh_from_omnitree_1 = get_mesh_from_discretization(
             discretization_omnitree_1, binary_discretization_occupancy_omnitree_1
@@ -445,15 +452,16 @@ if __name__ == "__main__":
         ic(np.sum(binary_discretization_occupancy_omnitree_1))
         # dyada.drawing.plot_all_boxes_3d(discretization_omnitree_1, labels=None, wireframe=True, filename="thingi_omnitree_1")
         ic(mesh_from_omnitree_1)
+        filename_omnitree_1 = (
+            str(thingi["thing_id"])
+            + "_omnitree_1_"
+            + str(allowed_tree_boxes)
+            + "_s"
+            + str(args.sobol_samples)
+        )
         if not mesh_from_omnitree_1.is_empty:
-            plot_with_pyplot(
-                mesh_from_omnitree_1,
-                str(thingi["thing_id"])
-                + "_omnitree_1_"
-                + str(allowed_tree_boxes)
-                + "_s"
-                + str(args.sobol_samples),
-            )
+            plot_with_pyplot(mesh_from_omnitree_1, filename_omnitree_1)
+        discretization_octree.descriptor.to_file(filename_omnitree_1)
 
         mesh_from_omnitree_2 = get_mesh_from_discretization(
             discretization_omnitree_2, binary_discretization_occupancy_omnitree_2
@@ -461,13 +469,13 @@ if __name__ == "__main__":
         ic(np.sum(binary_discretization_occupancy_omnitree_2))
         # dyada.drawing.plot_all_boxes_3d(discretization_omnitree_2, labels=None, wireframe=True, filename="thingi_omnitree_2")
         ic(mesh_from_omnitree_2)
+        filename_omnitree_2 = (
+            str(thingi["thing_id"])
+            + "_omnitree_2_"
+            + str(allowed_tree_boxes)
+            + "_s"
+            + str(args.sobol_samples)
+        )
         if not mesh_from_omnitree_2.is_empty:
-            plot_with_pyplot(
-                mesh_from_omnitree_2,
-                str(thingi["thing_id"])
-                + "_omnitree_2_"
-                + str(allowed_tree_boxes)
-                + "_s"
-                + str(args.sobol_samples),
-            )
-
+            plot_with_pyplot(mesh_from_omnitree_2, filename_omnitree_2)
+        discretization_octree.descriptor.to_file(filename_omnitree_2)
