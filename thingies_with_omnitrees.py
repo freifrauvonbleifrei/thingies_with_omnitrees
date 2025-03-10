@@ -331,7 +331,19 @@ if __name__ == "__main__":
         help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
         default=64,
     )
+    parser.add_argument(
+        "--slice",
+        type=str,
+        help="which slice of the data set this should work on, zero-indexed",
+        default="0/2048",
+    )
     args = parser.parse_args()
+    
+    parsed_slice = args.slice.split('/')
+    assert len(parsed_slice) == 2
+    my_slice = int(parsed_slice[0])
+    num_slices = int(parsed_slice[1])
+    assert my_slice < num_slices
 
     thingi10k.init(variant="raw")
     # select thingi meshes by closedness, having at most 10000 vertices, etc.
@@ -342,20 +354,22 @@ if __name__ == "__main__":
         self_intersecting=False,
         solid=True,
     )
-    print(len(subset))
+    chunk_size = len(subset) / num_slices
+    ic(len(subset["file_id"]))
+    subset = thingi10k.dataset(file_id = subset["file_id"][round(my_slice * chunk_size):round((my_slice+1) * chunk_size)])
+    num_my_thingies = len(subset["file_id"])
+    ic(num_my_thingies)
+    ic(subset)
 
     allowed_tree_boxes = args.allowed_tree_boxes
-    # randomly sample three thingies and display them
-    for thingi in np.random.choice(
-        subset,
-        1,
-    ):  # interesting IDs:
+
+    for thingi in subset:
         print(thingi)
         mesh = trimesh.load_mesh(thingi["file_path"], file_type="stl")
         if not mesh.is_watertight:
             continue
         mesh = mesh_to_unit_cube(mesh)
-        plot_with_pyplot(mesh, str(thingi["thing_id"]) + "_original")
+        plot_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
         discretization_octree = tree_voxel_thingi(
             mesh,
             allowed_tree_boxes,
@@ -436,7 +450,7 @@ if __name__ == "__main__":
         # dyada.drawing.plot_all_boxes_3d(discretization_octree, labels=None, wireframe=True, filename="thingi_octree")
         ic(mesh_from_octree)
         filename_octree = (
-            str(thingi["thing_id"])
+            str(thingi["file_id"])
             + "_octree_"
             + str(allowed_tree_boxes)
             + "_s"
@@ -453,7 +467,7 @@ if __name__ == "__main__":
         # dyada.drawing.plot_all_boxes_3d(discretization_omnitree_1, labels=None, wireframe=True, filename="thingi_omnitree_1")
         ic(mesh_from_omnitree_1)
         filename_omnitree_1 = (
-            str(thingi["thing_id"])
+            str(thingi["file_id"])
             + "_omnitree_1_"
             + str(allowed_tree_boxes)
             + "_s"
@@ -470,7 +484,7 @@ if __name__ == "__main__":
         # dyada.drawing.plot_all_boxes_3d(discretization_omnitree_2, labels=None, wireframe=True, filename="thingi_omnitree_2")
         ic(mesh_from_omnitree_2)
         filename_omnitree_2 = (
-            str(thingi["thing_id"])
+            str(thingi["file_id"])
             + "_omnitree_2_"
             + str(allowed_tree_boxes)
             + "_s"
