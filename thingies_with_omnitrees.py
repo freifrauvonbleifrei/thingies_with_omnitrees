@@ -3,7 +3,6 @@ import argparse as arg
 import bitarray as ba
 import functools
 import numpy as np
-import matplotlib.pyplot as plt
 from icecream import ic
 from queue import PriorityQueue
 from SALib.sample import sobol, saltelli
@@ -13,42 +12,10 @@ import trimesh
 
 import dyada
 import dyada.coordinates
-import dyada.drawing
 import dyada.linearization
 import dyada.refinement
 
 from thingies_utils import mesh_to_unit_cube, check_inside_or_outside_mesh
-
-
-def check_inside_or_outside_tree(
-    discretization: dyada.refinement.Discretization,
-    binary_discretization_occupancy: np.ndarray,
-    points: np.ndarray,
-) -> np.array:
-    is_inside = np.zeros(len(points), dtype=bool)
-    for p_i, point in enumerate(points):
-        box_index = discretization.get_containing_box(point)
-        if binary_discretization_occupancy[box_index]:
-            is_inside[p_i] = True
-    return is_inside
-
-
-def get_monte_carlo_l1_error(
-    mesh: trimesh.Geometry,
-    discretization: dyada.refinement.Discretization,
-    binary_discretization_occupancy: np.ndarray,
-    num_samples: int = 10000,
-) -> float:
-    # generate random points in the unit cube
-    points = np.random.rand(num_samples, 3)
-
-    is_inside_mesh = check_inside_or_outside_mesh(mesh, points)
-    is_inside_tree = check_inside_or_outside_tree(
-        discretization, binary_discretization_occupancy, points
-    )
-
-    # calculate the L1 error
-    return (is_inside_mesh ^ is_inside_tree).mean()
 
 
 @functools.cache
@@ -238,65 +205,6 @@ def tree_voxel_thingi(
     return discretization, priority_queue
 
 
-def get_binary_discretization_occupancy(
-    discretization: dyada.refinement.Discretization,
-    mesh: trimesh.Geometry,
-    num_samples: int = 1024,
-):
-    binary_discretization_occupancy = np.zeros(len(discretization), dtype=bool)
-    for box_index in range(len(discretization)):
-        interval = dyada.refinement.coordinates_from_box_index(
-            discretization, box_index
-        )
-        # get random points in the interval
-        random_points_in_interval = (
-            np.random.rand(num_samples, 3)
-            * (interval.upper_bound - interval.lower_bound)
-            + interval.lower_bound
-        )
-        if np.mean(check_inside_or_outside_mesh(mesh, random_points_in_interval)) > 0.5:
-            binary_discretization_occupancy[box_index] = True
-    return binary_discretization_occupancy
-
-
-def get_mesh_from_discretization(discretization, binary_discretization_occupancy):
-    # construct a mesh from the discretization
-    list_of_boxes = []
-    for box_index in range(len(discretization)):
-        if binary_discretization_occupancy[box_index]:
-            interval = dyada.refinement.coordinates_from_box_index(
-                discretization, box_index
-            )
-            # box = trimesh.creation.box(bounds=interval)
-            box = trimesh.creation.box(
-                extents=interval.upper_bound - interval.lower_bound,
-                transform=trimesh.transformations.translation_matrix(
-                    interval.lower_bound
-                    + (interval.upper_bound - interval.lower_bound) / 2
-                ),
-            )
-            list_of_boxes.append(box)
-    return trimesh.util.concatenate(list_of_boxes)
-
-
-def plot_with_pyplot(mesh: trimesh.Geometry, filename=None):
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-    ax.view_init(azim=220, share=True)
-    ax.plot([0, 1], [0, 1], [0, 1])
-    ax.plot_trisurf(
-        mesh.vertices[:, 0],
-        mesh.vertices[:, 1],
-        mesh.vertices[:, 2],
-        triangles=mesh.faces,
-    )
-    if filename is not None:
-        fig.savefig(filename + ".svg", dpi=300)
-        plt.close()
-    else:
-        plt.show()
-
-
 if __name__ == "__main__":
     parser = arg.ArgumentParser()
     parser.add_argument(
@@ -365,7 +273,6 @@ if __name__ == "__main__":
         if not mesh.is_watertight:
             continue
         mesh = mesh_to_unit_cube(mesh)
-        plot_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
 
         importance_function = functools.partial(
             get_sobol_importances, num_sobol_samples=args.sobol_samples
@@ -442,23 +349,6 @@ if __name__ == "__main__":
                     skip_function,
                     allowed_refinements,
                 )
-                binary_discretization_occupancy = get_binary_discretization_occupancy(
-                    discretization, mesh
-                )
-                ic(
-                    get_monte_carlo_l1_error(
-                        mesh, discretization, binary_discretization_occupancy
-                    )
-                )
-                assert len(binary_discretization_occupancy) == len(discretization)
-
-                # construct a mesh from the discretization
-                mesh_from_tree = get_mesh_from_discretization(
-                    discretization, binary_discretization_occupancy
-                )
-                ic(np.sum(binary_discretization_occupancy))
-                # dyada.drawing.plot_all_boxes_3d(discretization, labels=None, wireframe=True, filename=filename)
-                ic(mesh_from_tree)
                 filename = (
                     str(thingi["file_id"])
                     + "_"
@@ -468,6 +358,4 @@ if __name__ == "__main__":
                     + "_s"
                     + str(args.sobol_samples)
                 )
-                if not mesh_from_tree.is_empty:
-                    plot_with_pyplot(mesh_from_tree, filename)
                 discretization.descriptor.to_file(filename)
