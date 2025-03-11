@@ -175,7 +175,7 @@ if __name__ == "__main__":
         mesh = mesh_to_unit_cube(mesh)
         plot_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
 
-        tree_names = ["octree", "omnitree_1", "omnitree_2"]
+        tree_names = ["octree", "omnitree_1", "omnitree_2", "omnitree_3"]
 
         for allowed_tree_boxes in number_tree_boxes:
             for tree_name in tree_names:
