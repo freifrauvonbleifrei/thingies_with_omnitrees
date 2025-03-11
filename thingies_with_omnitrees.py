@@ -17,12 +17,7 @@ import dyada.drawing
 import dyada.linearization
 import dyada.refinement
 
-
-def check_inside_or_outside_mesh(
-    mesh: trimesh.Geometry, points: np.ndarray
-) -> np.array:
-    is_inside = mesh.contains(points)
-    return is_inside
+from thingies_utils import mesh_to_unit_cube, check_inside_or_outside_mesh
 
 
 def check_inside_or_outside_tree(
@@ -264,21 +259,6 @@ def get_binary_discretization_occupancy(
     return binary_discretization_occupancy
 
 
-def mesh_to_unit_cube(mesh: trimesh.Geometry) -> trimesh.Geometry:
-    # scale the mesh to fit in the unit cube (0, 1)^3
-    mesh.apply_scale(1.0 / mesh.extents.max())
-
-    # center the mesh
-    bounds_mean = mesh.bounds.mean(axis=(0))
-    mesh.apply_translation(-bounds_mean + 0.5)
-
-    # ic(mesh.extents.max(), mesh.extents.min())
-    assert np.isclose(mesh.bounds.max(), 1.0)
-    assert np.isclose(mesh.bounds.min(), 0.0)
-    assert np.isclose(mesh.extents.max(), 1.0)
-    return mesh
-
-
 def get_mesh_from_discretization(discretization, binary_discretization_occupancy):
     # construct a mesh from the discretization
     list_of_boxes = []
@@ -405,7 +385,15 @@ if __name__ == "__main__":
             ba.bitarray("110"),
             ba.bitarray("011"),
             ba.bitarray("101"),
-            # ba.bitarray("111"),
+        ]
+        allowed_refinements_omnitree_3 = [
+            ba.bitarray("100"),
+            ba.bitarray("010"),
+            ba.bitarray("001"),
+            ba.bitarray("110"),
+            ba.bitarray("011"),
+            ba.bitarray("101"),
+            ba.bitarray("111"),
         ]
 
         discretization_octree, queue_octree = get_initial_tree_and_queue(
@@ -416,6 +404,9 @@ if __name__ == "__main__":
         )
         discretization_omnitree_2, queue_omnitree_2 = get_initial_tree_and_queue(
             mesh, importance_function, allowed_refinements_omnitree_2
+        )
+        discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
+            mesh, importance_function, allowed_refinements_omnitree_3
         )
 
         tree_tuples = [
@@ -431,6 +422,12 @@ if __name__ == "__main__":
                 discretization_omnitree_2,
                 queue_omnitree_2,
                 "omnitree_2",
+            ),
+            (
+                allowed_refinements_omnitree_3,
+                discretization_omnitree_3,
+                queue_omnitree_3,
+                "omnitree_3",
             ),
         ]
 
