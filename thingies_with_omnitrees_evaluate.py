@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 import argparse as arg
+from filelock import FileLock
 import numpy as np
 import matplotlib.pyplot as plt
 from icecream import ic
 import os.path
+import pandas as pd
 import thingi10k
 import trimesh
 
@@ -13,6 +15,30 @@ import dyada.refinement
 
 
 from thingies_utils import mesh_to_unit_cube, check_inside_or_outside_mesh
+
+
+class ErrorL1File():
+    def __init__(self, num_sobol_samples):
+        self.l1fileName = "l1_errors_s" + str(num_sobol_samples) + ".csv"
+        self.lockFile = self.l1fileName + ".lock"
+        self.columns = ["thingi_file_id", "tree", "allowed_tree_boxes",
+                        "num_sobol_samples", "num_occupancy_samples",
+                        "num_boxes_occupied",
+                        "num_error_samples", "l1error"]
+
+        with FileLock(self.lockFile):
+            try:
+                with open(self.l1fileName, "x") as f:
+                    df = pd.DataFrame(columns=self.columns)
+                    df.to_csv(f, index=False)
+                    ic("created"+self.l1fileName)
+            except FileExistsError as e:
+                pass  # File already exists
+
+    def append_row(self, row_dict):
+        df = pd.DataFrame([row_dict])
+        with FileLock(self.lockFile):
+            df.to_csv(self.l1fileName, mode='a', index=False, header=False)
 
 
 def check_inside_or_outside_tree(
@@ -167,6 +193,8 @@ if __name__ == "__main__":
     num_my_thingies = len(subset["file_id"])
     ic(num_my_thingies, subset)
 
+    error_file = ErrorL1File(str(args.sobol_samples))
+
     for thingi in subset:
         print(thingi)
         mesh = trimesh.load_mesh(thingi["file_path"], file_type="stl")
@@ -217,9 +245,23 @@ if __name__ == "__main__":
                 mesh_from_tree = get_mesh_from_discretization(
                     discretization, binary_discretization_occupancy
                 )
-                ic(np.sum(binary_discretization_occupancy))
+                num_boxes_occupied = np.sum(binary_discretization_occupancy)
+                ic(num_boxes_occupied)
                 # dyada.drawing.plot_all_boxes_3d(discretization, labels=None, wireframe=True, filename=filename)
                 ic(mesh_from_tree)
                 filename = filename_tree + "_eval"
                 if not mesh_from_tree.is_empty:
                     plot_with_pyplot(mesh_from_tree, filename)
+
+                error_file.append_row(
+                        {
+                            "thingi_file_id": thingi["file_id"],
+                            "tree": tree_name,
+                            "allowed_tree_boxes": allowed_tree_boxes,
+                            "num_sobol_samples": args.sobol_samples,
+                            "num_occupancy_samples": number_occupancy_samples,
+                            "num_boxes_occupied": num_boxes_occupied,
+                            "num_error_samples": number_error_samples,
+                            "l1error": monte_carlo_l1_error,
+                        }
+                    )
