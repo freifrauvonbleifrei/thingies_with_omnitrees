@@ -63,7 +63,7 @@ def get_sobol_importances(
         importances = []
         for refinement in refinements:
             if refinement == ba.bitarray("111"):
-                importance = 1.0
+                importance = 1.0 - Si["S1"].sum() - Si["S2"].sum()
             elif refinement == ba.bitarray("100"):
                 importance = Si["S1"][0]
             elif refinement == ba.bitarray("010"):
