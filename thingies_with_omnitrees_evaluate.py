@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse as arg
+import bitarray as ba
 from filelock import FileLock
 import numpy as np
 import matplotlib.pyplot as plt
@@ -237,6 +238,8 @@ if __name__ == "__main__":
                 binary_discretization_occupancy = get_binary_discretization_occupancy(
                     discretization, mesh, number_occupancy_samples
                 )
+                with open(filename_tree + "_occupancy.bin", "wb") as f:
+                    ba.bitarray(binary_discretization_occupancy.tolist()).tofile(f)
                 assert len(binary_discretization_occupancy) == len(discretization)
                 monte_carlo_l1_error = get_monte_carlo_l1_error(
                     mesh,
