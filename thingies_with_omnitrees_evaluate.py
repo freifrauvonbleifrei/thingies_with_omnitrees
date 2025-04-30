@@ -119,7 +119,7 @@ def get_mesh_from_discretization(discretization, binary_discretization_occupancy
     return trimesh.util.concatenate(list_of_boxes)
 
 
-def plot_with_pyplot(mesh: trimesh.Geometry, filename=None):
+def plot_mesh_with_pyplot(mesh: trimesh.Geometry, filename=None):
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
     ax.view_init(azim=220, share=True)
@@ -207,7 +207,7 @@ if __name__ == "__main__":
         if not mesh.is_watertight:
             continue
         mesh = mesh_to_unit_cube(mesh)
-        plot_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
+        plot_mesh_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
 
         tree_names = ["octree", "omnitree_1", "omnitree_2", "omnitree_3"]
 
@@ -249,17 +249,8 @@ if __name__ == "__main__":
                 )
                 ic(monte_carlo_l1_error)
 
-                # construct a mesh from the discretization
-                mesh_from_tree = get_mesh_from_discretization(
-                    discretization, binary_discretization_occupancy
-                )
                 num_boxes_occupied = np.sum(binary_discretization_occupancy)
                 ic(num_boxes_occupied)
-                # dyada.drawing.plot_all_boxes_3d(discretization, labels=None, wireframe=True, filename=filename)
-                ic(mesh_from_tree)
-                filename = filename_tree + "_eval"
-                if not mesh_from_tree.is_empty:
-                    plot_with_pyplot(mesh_from_tree, filename)
 
                 error_file.append_row(
                     {
