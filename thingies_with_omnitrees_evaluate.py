@@ -3,6 +3,7 @@ import argparse as arg
 import bitarray as ba
 from filelock import FileLock
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 from icecream import ic
 import os.path
@@ -51,7 +52,7 @@ def check_inside_or_outside_tree(
     discretization: dyada.refinement.Discretization,
     binary_discretization_occupancy: np.ndarray,
     points: np.ndarray,
-) -> np.array:
+) -> npt.NDArray[np.bool_]:
     is_inside = np.zeros(len(points), dtype=bool)
     for p_i, point in enumerate(points):
         box_index = discretization.get_containing_box(point)
@@ -61,7 +62,7 @@ def check_inside_or_outside_tree(
 
 
 def get_monte_carlo_l1_error(
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     discretization: dyada.refinement.Discretization,
     binary_discretization_occupancy: np.ndarray,
     num_samples: int,
@@ -80,7 +81,7 @@ def get_monte_carlo_l1_error(
 
 def get_binary_discretization_occupancy(
     discretization: dyada.refinement.Discretization,
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     num_samples: int,
 ):
     binary_discretization_occupancy = np.zeros(len(discretization), dtype=bool)
@@ -119,7 +120,7 @@ def get_mesh_from_discretization(discretization, binary_discretization_occupancy
     return trimesh.util.concatenate(list_of_boxes)
 
 
-def plot_mesh_with_pyplot(mesh: trimesh.Geometry, filename=None):
+def plot_mesh_with_pyplot(mesh: trimesh.Trimesh, filename=None):
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
     ax.view_init(azim=220, share=True)

@@ -31,7 +31,7 @@ def get_unit_cube_sa_problem(num_sobol_samples: int):
 
 
 def get_sobol_importances(
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     interval: dyada.coordinates.CoordinateInterval,
     refinements: list[ba.bitarray],
     num_sobol_samples: int,
@@ -83,7 +83,7 @@ def get_sobol_importances(
 
 
 def skip_function_no_importance(
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     interval: dyada.coordinates.CoordinateInterval,
     importance: float,
 ) -> bool:
@@ -96,7 +96,7 @@ def put_box_into_priority_queue(
     box_index: int,
     priority_queue: PriorityQueue,
     discretization: dyada.refinement.Discretization,
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     importance_function,
     skip_function,
     allowed_refinements=[ba.bitarray("111")],
@@ -112,7 +112,7 @@ def put_box_into_priority_queue(
 
 def get_initial_priority_queue(
     discretization: dyada.refinement.Discretization,
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     importance_function,
     allowed_refinements=[ba.bitarray("111")],
 ) -> PriorityQueue:
@@ -134,7 +134,7 @@ def get_initial_priority_queue(
 
 
 def get_initial_tree_and_queue(
-    mesh: trimesh.Geometry, importance_function, allowed_refinements
+    mesh: trimesh.Trimesh, importance_function, allowed_refinements
 ):
     discretization = dyada.refinement.Discretization(
         dyada.linearization.MortonOrderLinearization(),
@@ -152,7 +152,7 @@ def get_initial_tree_and_queue(
 def tree_voxel_thingi(
     discretization,
     priority_queue,
-    mesh: trimesh.Geometry,
+    mesh: trimesh.Trimesh,
     max_num_boxes: int,
     importance_function,
     skip_function,
