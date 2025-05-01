@@ -30,6 +30,9 @@ class ErrorL1File:
             "num_occupancy_samples",
             "num_boxes_occupied",
             "num_error_samples",
+            "num_boxes",
+            "tree_information",
+            "occupancy_information",
             "l1error",
         ]
 
@@ -136,6 +139,25 @@ def plot_mesh_with_pyplot(mesh: trimesh.Trimesh, filename=None):
         plt.close()
     else:
         plt.show()
+
+
+def get_shannon_information(
+    binary_array_or_bitarray,
+) -> float:
+    # cast to np.ndarray[bool] if necessary
+    if isinstance(binary_array_or_bitarray, ba.bitarray):
+        binary_array_or_bitarray = np.array(
+            binary_array_or_bitarray.tolist(), dtype=bool
+        )
+    # calculate the Shannon information
+    length = len(binary_array_or_bitarray)
+    num_ones = np.sum(binary_array_or_bitarray)
+    num_zeros = length - num_ones
+    p_ones = num_ones / length
+    p_zeros = num_zeros / length
+    if p_ones == 0 or p_zeros == 0:
+        return 0
+    return -p_ones * np.log2(p_ones) - p_zeros * np.log2(p_zeros)
 
 
 if __name__ == "__main__":
@@ -250,9 +272,6 @@ if __name__ == "__main__":
                 )
                 ic(monte_carlo_l1_error)
 
-                num_boxes_occupied = np.sum(binary_discretization_occupancy)
-                ic(num_boxes_occupied)
-
                 error_file.append_row(
                     {
                         "thingi_file_id": thingi["file_id"],
@@ -260,8 +279,15 @@ if __name__ == "__main__":
                         "allowed_tree_boxes": allowed_tree_boxes,
                         "num_sobol_samples": args.sobol_samples,
                         "num_occupancy_samples": number_occupancy_samples,
-                        "num_boxes_occupied": num_boxes_occupied,
+                        "num_boxes_occupied": np.sum(binary_discretization_occupancy),
                         "num_error_samples": number_error_samples,
+                        "num_boxes": len(discretization),
+                        "tree_information": get_shannon_information(
+                            discretization.descriptor.get_data()
+                        ),
+                        "occupancy_information": get_shannon_information(
+                            binary_discretization_occupancy
+                        ),
                         "l1error": monte_carlo_l1_error,
                     }
                 )

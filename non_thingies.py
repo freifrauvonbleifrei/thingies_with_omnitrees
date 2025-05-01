@@ -23,6 +23,7 @@ from thingies_with_omnitrees_evaluate import (
     ErrorL1File,
     get_binary_discretization_occupancy,
     get_monte_carlo_l1_error,
+    get_shannon_information,
     plot_mesh_with_pyplot,
 )
 
@@ -164,6 +165,15 @@ if __name__ == "__main__":
             with open(filename_tree + "_occupancy.bin", "wb") as f:
                 ba.bitarray(binary_discretization_occupancy.tolist()).tofile(f)
             assert len(binary_discretization_occupancy) == len(discretization)
+            # get the shannon information both in the tree descriptor and in the function
+            tree_information = get_shannon_information(
+                discretization.descriptor.get_data()
+            )
+            function_information = get_shannon_information(
+                binary_discretization_occupancy
+            )
+            ic(tree_information, function_information)
+
             monte_carlo_l1_error = get_monte_carlo_l1_error(
                 mesh,
                 discretization,
@@ -184,6 +194,13 @@ if __name__ == "__main__":
                     "num_occupancy_samples": number_occupancy_samples,
                     "num_boxes_occupied": num_boxes_occupied,
                     "num_error_samples": number_error_samples,
+                    "num_boxes": len(discretization),
+                    "tree_information": get_shannon_information(
+                        discretization.descriptor.get_data()
+                    ),
+                    "occupancy_information": get_shannon_information(
+                        binary_discretization_occupancy
+                    ),
                     "l1error": monte_carlo_l1_error,
                 }
             )
@@ -195,5 +212,6 @@ if __name__ == "__main__":
                 )
 
     # call the thingies_merge_svgs.py script to merge the SVGs
-    subprocess.run(["python3", os.path.dirname(__file__) + "/thingies_merge_svgs.py"], check=True)
-
+    subprocess.run(
+        ["python3", os.path.dirname(__file__) + "/thingies_merge_svgs.py"], check=True
+    )
