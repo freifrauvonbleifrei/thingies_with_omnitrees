@@ -28,6 +28,13 @@ def plot_binary_3d_omnitree_with_pyplot(
         colors=["gray"],
         linewidth=0.09,
     )
+    ax.set_title("")
+    ax.text2D(
+        0.6,
+        0.93,
+        "filled: " + f"{sum(binary_occupancy):>4}" + " / " + f"{len(coordinates):>4}",
+        transform=ax.transAxes,
+    )
     ax.view_init(azim=220, share=True)  # cf. evaluate script
     ax.plot([0, 1], [0, 1], [0, 1])
 
@@ -41,7 +48,7 @@ def plot_binary_3d_omnitree_with_pyplot(
         )
 
     if filename is not None:
-        fig.savefig(filename + ".svg", dpi=300)
+        fig.savefig(filename + ".svg", dpi=600, bbox_inches="tight")
         plt.close()
     else:
         plt.show()
@@ -84,7 +91,7 @@ if __name__ == "__main__":
     )
 
     num_boxes_occupied = np.sum(binary_discretization_occupancy)
-    ic(num_boxes_occupied)
+    ic(filename_tree[:-7], num_boxes_occupied)
     filename_svg = filename_tree[:-7] + "_eval"
     if not num_boxes_occupied == 0:
         plot_binary_3d_omnitree_with_pyplot(
