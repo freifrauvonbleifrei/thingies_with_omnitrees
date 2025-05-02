@@ -55,6 +55,8 @@ if __name__ == "__main__":
     else:
         raise ValueError("wrong formatting for number_tree_boxes")
 
+    non_thingies: list[dict] = []
+
     # tetrahedron mesh
     mesh = trimesh.Trimesh(
         vertices=[[1, 0, 0], [0, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -65,9 +67,34 @@ if __name__ == "__main__":
     if not mesh.is_watertight:
         raise ValueError(f"Mesh is not watertight")
     mesh = mesh_to_unit_cube(mesh)
-    fake_file_id = 0
+
+    non_thingies.append(
+        {
+            "mesh": mesh,
+            "fake_file_id": 0,
+        }
+    )
+
+    # icosphere mesh
+    mesh = trimesh.creation.icosphere(subdivisions=4)
+    if not mesh.is_watertight:
+        raise ValueError(f"Mesh is not watertight")
+    mesh = mesh_to_unit_cube(mesh)
+    non_thingies.append(
+        {
+            "mesh": mesh,
+            "fake_file_id": 1,
+        }
+    )
+
     azim = 105
-    plot_mesh_with_pyplot(mesh, azim=azim, filename=str(fake_file_id) + "_original")
+    for non_thingy in non_thingies:
+        # plot the original mesh
+        plot_mesh_with_pyplot(
+            non_thingy["mesh"],
+            azim=azim,
+            filename=str(non_thingy["fake_file_id"]) + "_original",
+        )
 
     importance_function = functools.partial(
         get_sobol_importances, num_sobol_samples=args.sobol_samples
@@ -135,85 +162,88 @@ if __name__ == "__main__":
 
     error_file = ErrorL1File(str(args.sobol_samples))
 
-    for allowed_refinements, discretization, queue, tree_name in tree_tuples:
-        for allowed_tree_boxes in number_tree_boxes:
-            discretization, queue = tree_voxel_thingi(
-                discretization,
-                queue,
-                mesh,
-                allowed_tree_boxes,
-                importance_function,
-                skip_function,
-                allowed_refinements,
-            )
-            filename_tree = (
-                str(fake_file_id)
-                + "_"
-                + tree_name
-                + "_"
-                + str(allowed_tree_boxes)
-                + "_s"
-                + str(args.sobol_samples)
-            )
-            discretization.descriptor.to_file(filename_tree)
+    for non_thingy in non_thingies:
+        mesh = non_thingy["mesh"]
+        fake_file_id = non_thingy["fake_file_id"]
+        for allowed_refinements, discretization, queue, tree_name in tree_tuples:
+            for allowed_tree_boxes in number_tree_boxes:
+                discretization, queue = tree_voxel_thingi(
+                    discretization,
+                    queue,
+                    mesh,
+                    allowed_tree_boxes,
+                    importance_function,
+                    skip_function,
+                    allowed_refinements,
+                )
+                filename_tree = (
+                    str(fake_file_id)
+                    + "_"
+                    + tree_name
+                    + "_"
+                    + str(allowed_tree_boxes)
+                    + "_s"
+                    + str(args.sobol_samples)
+                )
+                discretization.descriptor.to_file(filename_tree)
 
-            # and evaluate the error immediately
-            number_error_samples = 131072
-            number_occupancy_samples = 2048
-            binary_discretization_occupancy = get_binary_discretization_occupancy(
-                discretization, mesh, number_occupancy_samples
-            )
-            with open(filename_tree + "_occupancy.bin", "wb") as f:
-                ba.bitarray(binary_discretization_occupancy.tolist()).tofile(f)
-            assert len(binary_discretization_occupancy) == len(discretization)
-            # get the shannon information both in the tree descriptor and in the function
-            tree_information = get_shannon_information(
-                discretization.descriptor.get_data()
-            )
-            function_information = get_shannon_information(
-                binary_discretization_occupancy
-            )
-            ic(tree_information, function_information)
+                # and evaluate the error immediately
+                number_error_samples = 131072
+                number_occupancy_samples = 2048
+                binary_discretization_occupancy = get_binary_discretization_occupancy(
+                    discretization, mesh, number_occupancy_samples
+                )
+                with open(filename_tree + "_occupancy.bin", "wb") as f:
+                    ba.bitarray(binary_discretization_occupancy.tolist()).tofile(f)
+                assert len(binary_discretization_occupancy) == len(discretization)
+                # get the shannon information both in the tree descriptor and in the function
+                tree_information = get_shannon_information(
+                    discretization.descriptor.get_data()
+                )
+                function_information = get_shannon_information(
+                    binary_discretization_occupancy
+                )
+                ic(tree_information, function_information)
 
-            monte_carlo_l1_error = get_monte_carlo_l1_error(
-                mesh,
-                discretization,
-                binary_discretization_occupancy,
-                number_error_samples,
-            )
-            ic(monte_carlo_l1_error)
-
-            num_boxes_occupied = np.sum(binary_discretization_occupancy)
-            ic(num_boxes_occupied)
-
-            error_file.append_row(
-                {
-                    "thingi_file_id": fake_file_id,
-                    "tree": tree_name,
-                    "allowed_tree_boxes": allowed_tree_boxes,
-                    "num_sobol_samples": args.sobol_samples,
-                    "num_occupancy_samples": number_occupancy_samples,
-                    "num_boxes_occupied": num_boxes_occupied,
-                    "num_error_samples": number_error_samples,
-                    "num_boxes": len(discretization),
-                    "tree_information": get_shannon_information(
-                        discretization.descriptor.get_data()
-                    ),
-                    "occupancy_information": get_shannon_information(
-                        binary_discretization_occupancy
-                    ),
-                    "l1error": monte_carlo_l1_error,
-                }
-            )
-
-            filename_svg = filename_tree + "_eval"
-            if not num_boxes_occupied == 0:
-                plot_binary_3d_omnitree_with_pyplot(
+                monte_carlo_l1_error = get_monte_carlo_l1_error(
+                    mesh,
                     discretization,
                     binary_discretization_occupancy,
-                    azim=azim,
-                    filename=filename_svg,
+                    number_error_samples,
                 )
+                ic(monte_carlo_l1_error)
+
+                num_boxes_occupied = np.sum(binary_discretization_occupancy)
+                ic(num_boxes_occupied)
+
+                error_file.append_row(
+                    {
+                        "thingi_file_id": fake_file_id,
+                        "tree": tree_name,
+                        "allowed_tree_boxes": allowed_tree_boxes,
+                        "num_sobol_samples": args.sobol_samples,
+                        "num_occupancy_samples": number_occupancy_samples,
+                        "num_boxes_occupied": num_boxes_occupied,
+                        "num_error_samples": number_error_samples,
+                        "num_boxes": len(discretization),
+                        "tree_information": get_shannon_information(
+                            discretization.descriptor.get_data()
+                        ),
+                        "occupancy_information": get_shannon_information(
+                            binary_discretization_occupancy
+                        ),
+                        "l1error": monte_carlo_l1_error,
+                    }
+                )
+
+                filename_svg = filename_tree + "_eval"
+                if not num_boxes_occupied == 0:
+                    plot_binary_3d_omnitree_with_pyplot(
+                        discretization,
+                        binary_discretization_occupancy,
+                        azim=azim,
+                        filename=filename_svg,
+                    )
 
     # call the thingies_merge_svgs.py script to merge the SVGs
     subprocess.run(
