@@ -39,7 +39,7 @@ if __name__ == "__main__":
         "--sobol_samples",
         type=int,
         help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
-        default=64,
+        default=2048,
     )
     args = parser.parse_args()
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     # tetrahedron mesh
     mesh = trimesh.Trimesh(
-        vertices=[[1, 0, 0], [0, 0, 0], [1, 1, 0], [1, 0, 1]],
+        vertices=[[1, 0, 0], [0, 0, 0], [0, 1, 0], [0, 0, 1]],
         faces=[[0, 1, 2], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
         process=True,
     )

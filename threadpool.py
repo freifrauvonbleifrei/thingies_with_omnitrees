@@ -6,7 +6,7 @@ import subprocess
 
 min_tree_boxes = 16
 max_tree_boxes = 2048
-num_sobol_samples = 64
+num_sobol_samples = 2048
 
 def generate(slice_string):
     ic(slice_string)
@@ -34,14 +34,17 @@ def evaluate(slice_string, num_boxes):
 num = 8  # set to the number of workers you want (None defaults to the cpu count of your machine)
 tp = ThreadPool(num)
 
-num_slices = 1 #2048
+num_slices = 2048
+# generate
 for sample in range(num_slices):
     tp.apply_async(generate, (str(sample) + "/" + str(num_slices),))
-    # and/or:
-    # num_boxes = min_tree_boxes
-    # while num_boxes <= max_tree_boxes:
-    #     tp.apply_async(evaluate, (str(sample) + "/" + str(num_slices), num_boxes))
-    #     num_boxes *= 2
+# evaluate
+for sample in range(num_slices):
+    num_boxes = min_tree_boxes
+    while num_boxes <= max_tree_boxes:
+        tp.apply_async(evaluate, (str(sample) + "/" + str(num_slices), num_boxes))
+        num_boxes *= 2
+# print -> don't do this for all, it takes a lot of storage
 
 tp.close()
 tp.join()
