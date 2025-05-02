@@ -123,10 +123,10 @@ def get_mesh_from_discretization(discretization, binary_discretization_occupancy
     return trimesh.util.concatenate(list_of_boxes)
 
 
-def plot_mesh_with_pyplot(mesh: trimesh.Trimesh, filename=None):
+def plot_mesh_with_pyplot(mesh: trimesh.Trimesh, azim=200, filename=None):
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
-    ax.view_init(azim=220, share=True)
+    ax.view_init(azim=azim, share=True)
     ax.plot([0, 1], [0, 1], [0, 1])
     ax.plot_trisurf(
         mesh.vertices[:, 0],
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         if not mesh.is_watertight:
             continue
         mesh = mesh_to_unit_cube(mesh)
-        plot_mesh_with_pyplot(mesh, str(thingi["file_id"]) + "_original")
+        plot_mesh_with_pyplot(mesh, azim=220, filename=str(thingi["file_id"]) + "_original")
 
         tree_names = ["octree", "omnitree_1", "omnitree_2", "omnitree_3"]
 

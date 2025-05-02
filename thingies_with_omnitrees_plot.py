@@ -13,7 +13,10 @@ import dyada.refinement
 
 
 def plot_binary_3d_omnitree_with_pyplot(
-    discretization: dyada.refinement.Discretization, binary_occupancy, filename=None
+    discretization: dyada.refinement.Discretization,
+    binary_occupancy,
+    azim=200,
+    filename=None,
 ):
     level_indices = list(discretization.get_all_boxes_level_indices())
     coordinates = [
@@ -35,7 +38,7 @@ def plot_binary_3d_omnitree_with_pyplot(
         "filled: " + f"{sum(binary_occupancy):>4}" + " / " + f"{len(coordinates):>4}",
         transform=ax.transAxes,
     )
-    ax.view_init(azim=220, share=True)  # cf. evaluate script
+    ax.view_init(azim=azim, share=True)  # cf. evaluate script
     ax.plot([0, 1], [0, 1], [0, 1])
 
     # filter coordinates by binary occupancy
@@ -95,5 +98,8 @@ if __name__ == "__main__":
     filename_svg = filename_tree[:-7] + "_eval"
     if not num_boxes_occupied == 0:
         plot_binary_3d_omnitree_with_pyplot(
-            discretization, binary_discretization_occupancy, filename_svg
+            discretization,
+            binary_discretization_occupancy,
+            azim=220,
+            filename=filename_svg,
         )

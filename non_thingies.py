@@ -66,7 +66,8 @@ if __name__ == "__main__":
         raise ValueError(f"Mesh is not watertight")
     mesh = mesh_to_unit_cube(mesh)
     fake_file_id = 0
-    plot_mesh_with_pyplot(mesh, str(fake_file_id) + "_original")
+    azim = 105
+    plot_mesh_with_pyplot(mesh, azim=azim, filename=str(fake_file_id) + "_original")
 
     importance_function = functools.partial(
         get_sobol_importances, num_sobol_samples=args.sobol_samples
@@ -208,7 +209,10 @@ if __name__ == "__main__":
             filename_svg = filename_tree + "_eval"
             if not num_boxes_occupied == 0:
                 plot_binary_3d_omnitree_with_pyplot(
-                    discretization, binary_discretization_occupancy, filename_svg
+                    discretization,
+                    binary_discretization_occupancy,
+                    azim=azim,
+                    filename=filename_svg,
                 )
 
     # call the thingies_merge_svgs.py script to merge the SVGs
