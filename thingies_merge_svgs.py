@@ -6,14 +6,15 @@ from svgutils.transform import fromstring
 import os.path
 import subprocess
 
-# import xml.etree.ElementTree as ET
-
 
 if __name__ == "__main__":
     # find all svg files in the current directory and group them by numerical prefix
-    paths = [f for f in os.listdir(".") if os.path.isfile(f) and f.endswith(".svg")]
+    input_paths = [
+        f for f in os.listdir(".") if os.path.isfile(f) and f.endswith(".svg")
+    ]
+    ic(input_paths)
     svg_files: dict[str, list[str]] = {}
-    for path in paths:
+    for path in input_paths:
         prefix = path.split("_")[0]
         try:
             int(prefix)
