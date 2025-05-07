@@ -199,7 +199,7 @@ if __name__ == "__main__":
     num_slices = int(parsed_slice[1])
     assert my_slice < num_slices
 
-    thingi10k.init(variant="raw")
+    thingi10k.init()
 
     # select thingi meshes by closedness, having at most 10000 vertices, etc.
     subset = thingi10k.dataset(
@@ -226,8 +226,17 @@ if __name__ == "__main__":
 
     for thingi in subset:
         print(thingi)
-        mesh = trimesh.load_mesh(thingi["file_path"], file_type="stl")
-        if not mesh.is_watertight:
+        mesh_data = np.load(thingi["file_path"])
+        mesh_vertices = mesh_data['vertices']
+        mesh_faces = mesh_data['facets']
+        mesh = trimesh.Trimesh(vertices=mesh_vertices, faces=mesh_faces)
+        try:
+            if not mesh.is_watertight:
+                continue
+        except IndexError as e:
+            ic(mesh.vertices)
+            ic(mesh.faces)
+            print(e)
             continue
         mesh = mesh_to_unit_cube(mesh)
         plot_mesh_with_pyplot(mesh, azim=220, filename=str(thingi["file_id"]) + "_original")
