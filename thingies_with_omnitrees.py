@@ -4,6 +4,7 @@ import bitarray as ba
 import functools
 import numpy as np
 from icecream import ic
+import os
 from queue import PriorityQueue
 from SALib.sample import sobol, saltelli
 from SALib.analyze import sobol
@@ -339,6 +340,19 @@ if __name__ == "__main__":
         ]
 
         for allowed_refinements, discretization, queue, tree_name in tree_tuples:
+            filename_finest = (
+                    str(thingi["file_id"])
+                    + "_"
+                    + tree_name
+                    + "_"
+                    + str(number_tree_boxes[-1])
+                    + "_s"
+                    + str(args.sobol_samples)
+                    + "_3d.bin"
+                )
+            if os.path.isfile(filename_finest):
+                ic(filename_finest, " exists")
+                continue
             for allowed_tree_boxes in number_tree_boxes:
                 discretization, queue = tree_voxel_thingi(
                     discretization,
