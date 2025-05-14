@@ -118,7 +118,7 @@ def get_initial_priority_queue(
     allowed_refinements=[ba.bitarray("111")],
 ) -> PriorityQueue:
     # initialize the priority queue
-    priority_queue = PriorityQueue()
+    priority_queue: PriorityQueue = PriorityQueue()
 
     # calculate the importance of each box, for each allowed refinement
     for box_index in range(len(discretization)):
@@ -167,7 +167,7 @@ def tree_voxel_thingi(
             discretization, next_refinement_index, refinement
         )
         # update the priority queue's old entries with the (potentially) changed indices
-        new_priority_queue = PriorityQueue()
+        new_priority_queue: PriorityQueue = PriorityQueue()
         while not priority_queue.empty():
             i_neg_importance, i_refinement, i = priority_queue.get()
             if allowed_refinements == [ba.bitarray("111")]:
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     num_slices = int(parsed_slice[1])
     assert my_slice < num_slices
 
-    thingi10k.init(variant="raw")
+    thingi10k.init()
 
     # select thingi meshes by closedness, having at most 10000 vertices, etc.
     subset = thingi10k.dataset(
@@ -270,8 +270,17 @@ if __name__ == "__main__":
 
     for thingi in subset:
         print(thingi)
-        mesh = trimesh.load_mesh(thingi["file_path"], file_type="stl")
-        if not mesh.is_watertight:
+        mesh_data = np.load(thingi["file_path"])
+        mesh_vertices = mesh_data["vertices"]
+        mesh_faces = mesh_data["facets"]
+        mesh = trimesh.Trimesh(vertices=mesh_vertices, faces=mesh_faces)
+        try:
+            if not mesh.is_watertight:
+                continue
+        except IndexError as e:
+            ic(mesh.vertices)
+            ic(mesh.faces)
+            print(e)
             continue
         mesh = mesh_to_unit_cube(mesh)
 
@@ -341,15 +350,15 @@ if __name__ == "__main__":
 
         for allowed_refinements, discretization, queue, tree_name in tree_tuples:
             filename_finest = (
-                    str(thingi["file_id"])
-                    + "_"
-                    + tree_name
-                    + "_"
-                    + str(number_tree_boxes[-1])
-                    + "_s"
-                    + str(args.sobol_samples)
-                    + "_3d.bin"
-                )
+                str(thingi["file_id"])
+                + "_"
+                + tree_name
+                + "_"
+                + str(number_tree_boxes[-1])
+                + "_s"
+                + str(args.sobol_samples)
+                + "_3d.bin"
+            )
             if os.path.isfile(filename_finest):
                 ic(filename_finest, " exists")
                 continue
