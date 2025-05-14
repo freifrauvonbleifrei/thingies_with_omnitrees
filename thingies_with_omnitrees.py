@@ -160,8 +160,13 @@ def tree_voxel_thingi(
     allowed_refinements,
 ) -> tuple[dyada.refinement.Discretization, PriorityQueue]:
 
+    too_fine = False
     # grow the tree until the desired number of boxes is reached
-    while len(discretization) < max_num_boxes and not priority_queue.empty():
+    while (
+        len(discretization) < max_num_boxes
+        and not priority_queue.empty()
+        and not too_fine
+    ):
         _, refinement, next_refinement_index = priority_queue.get()
         discretization, index_mapping = dyada.refinement.apply_single_refinement(
             discretization, next_refinement_index, refinement
@@ -190,6 +195,12 @@ def tree_voxel_thingi(
                     skip_function,
                     allowed_refinements,
                 )
+            except dyada.coordinates.DyadaTooFineError as e:
+                # the next boxes would be too fine, break
+                # (because everything else will have little impact as well)
+                ic(e)
+                too_fine = True
+                break
             except Exception as e:
                 ic(i)
                 ic(index_mapping[next_refinement_index])
