@@ -50,6 +50,14 @@ class ErrorL1File:
         with FileLock(self.lockFile):
             df.to_csv(self.l1fileName, mode="a", index=False, header=False)
 
+    def check_row_exists(self, row_dict):
+        rows_per_chunk = 1024
+        for chunk in pd.read_csv(self.l1fileName, chunksize=rows_per_chunk):
+            for _, row in chunk.iterrows():
+                if all(row[k] == v for k, v in row_dict.items()):
+                    return True
+        return False
+
 
 def check_inside_or_outside_tree(
     discretization: dyada.refinement.Discretization,
@@ -227,8 +235,8 @@ if __name__ == "__main__":
     for thingi in subset:
         print(thingi)
         mesh_data = np.load(thingi["file_path"])
-        mesh_vertices = mesh_data['vertices']
-        mesh_faces = mesh_data['facets']
+        mesh_vertices = mesh_data["vertices"]
+        mesh_faces = mesh_data["facets"]
         mesh = trimesh.Trimesh(vertices=mesh_vertices, faces=mesh_faces)
         try:
             if not mesh.is_watertight:
@@ -239,7 +247,9 @@ if __name__ == "__main__":
             print(e)
             continue
         mesh = mesh_to_unit_cube(mesh)
-        plot_mesh_with_pyplot(mesh, azim=220, filename=str(thingi["file_id"]) + "_original")
+        plot_mesh_with_pyplot(
+            mesh, azim=220, filename=str(thingi["file_id"]) + "_original"
+        )
 
         tree_names = ["octree", "omnitree_1", "omnitree_2", "omnitree_3"]
 
@@ -267,6 +277,17 @@ if __name__ == "__main__":
 
                 number_error_samples = 131072
                 number_occupancy_samples = 2048
+                partial_dict = {
+                    "thingi_file_id": thingi["file_id"],
+                    "tree": tree_name,
+                    "allowed_tree_boxes": allowed_tree_boxes,
+                    "num_sobol_samples": args.sobol_samples,
+                    "num_occupancy_samples": number_occupancy_samples,
+                }
+                if error_file.check_row_exists(partial_dict):
+                    print(partial_dict, " already evaluated, skipping")
+                    continue
+
                 binary_discretization_occupancy = get_binary_discretization_occupancy(
                     discretization, mesh, number_occupancy_samples
                 )
@@ -281,22 +302,16 @@ if __name__ == "__main__":
                 )
                 ic(monte_carlo_l1_error)
 
-                error_file.append_row(
-                    {
-                        "thingi_file_id": thingi["file_id"],
-                        "tree": tree_name,
-                        "allowed_tree_boxes": allowed_tree_boxes,
-                        "num_sobol_samples": args.sobol_samples,
-                        "num_occupancy_samples": number_occupancy_samples,
-                        "num_boxes_occupied": np.sum(binary_discretization_occupancy),
-                        "num_error_samples": number_error_samples,
-                        "num_boxes": len(discretization),
-                        "tree_information": get_shannon_information(
-                            discretization.descriptor.get_data()
-                        ),
-                        "occupancy_information": get_shannon_information(
-                            binary_discretization_occupancy
-                        ),
-                        "l1error": monte_carlo_l1_error,
-                    }
-                )
+                store_dict = partial_dict | {
+                    "num_boxes_occupied": np.sum(binary_discretization_occupancy),
+                    "num_error_samples": number_error_samples,
+                    "num_boxes": len(discretization),
+                    "tree_information": get_shannon_information(
+                        discretization.descriptor.get_data()
+                    ),
+                    "occupancy_information": get_shannon_information(
+                        binary_discretization_occupancy
+                    ),
+                    "l1error": monte_carlo_l1_error,
+                }
+                error_file.append_row(store_dict)
