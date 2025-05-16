@@ -64,7 +64,7 @@ if __name__ == "__main__":
             svg_original.moveto(0, original_down_shift)
 
             # move all except original right and!
-            right_offset = svg_original.width
+            right_offset = svg_original.width * 0.7
             more_right_offset = right_offset + svg_octree.width
             # octree and omnitree_1 down, omnitree_1 and omnitree_3 right
             svg_octree.moveto(right_offset, svg_octree.height)

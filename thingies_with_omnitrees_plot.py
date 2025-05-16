@@ -47,7 +47,11 @@ def plot_binary_3d_omnitree_with_pyplot(
     ]
     for coordinate in coordinates:
         ax = dyada.drawing.draw_cuboid_on_axis(
-            ax, coordinate, color="orange", edgecolors="black", linewidth=0.3
+            ax,
+            coordinate,
+            color="orange",
+            edgecolors="black",
+            linewidth=0.3,
         )
 
     if filename is not None:
@@ -96,10 +100,9 @@ if __name__ == "__main__":
     num_boxes_occupied = np.sum(binary_discretization_occupancy)
     ic(filename_tree[:-7], num_boxes_occupied)
     filename_svg = filename_tree[:-7] + "_eval"
-    if not num_boxes_occupied == 0:
-        plot_binary_3d_omnitree_with_pyplot(
-            discretization,
-            binary_discretization_occupancy,
-            azim=220,
-            filename=filename_svg,
-        )
+    plot_binary_3d_omnitree_with_pyplot(
+        discretization,
+        binary_discretization_occupancy,
+        azim=220,
+        filename=filename_svg,
+    )

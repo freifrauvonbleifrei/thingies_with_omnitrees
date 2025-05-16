@@ -28,11 +28,11 @@ class ErrorL1File:
             "allowed_tree_boxes",
             "num_sobol_samples",
             "num_occupancy_samples",
-            "num_boxes_occupied",
             "num_error_samples",
             "num_boxes",
-            "tree_information",
-            "occupancy_information",
+            "num_boxes_occupied",
+            "num_tree_nodes",
+            "tree_number_of_1s",
             "l1error",
         ]
 
@@ -47,6 +47,8 @@ class ErrorL1File:
 
     def append_row(self, row_dict):
         df = pd.DataFrame([row_dict])
+        # check columns complete and make same order
+        df = df[self.columns]
         with FileLock(self.lockFile):
             df.to_csv(self.l1fileName, mode="a", index=False, header=False)
 
@@ -276,13 +278,14 @@ if __name__ == "__main__":
                 )
 
                 number_error_samples = 131072
-                number_occupancy_samples = 2048
+                number_occupancy_samples = args.sobol_samples
                 partial_dict = {
                     "thingi_file_id": thingi["file_id"],
                     "tree": tree_name,
                     "allowed_tree_boxes": allowed_tree_boxes,
                     "num_sobol_samples": args.sobol_samples,
                     "num_occupancy_samples": number_occupancy_samples,
+                    "num_error_samples": number_error_samples,
                 }
                 if error_file.check_row_exists(partial_dict):
                     print(partial_dict, " already evaluated, skipping")
@@ -303,15 +306,10 @@ if __name__ == "__main__":
                 ic(monte_carlo_l1_error)
 
                 store_dict = partial_dict | {
-                    "num_boxes_occupied": np.sum(binary_discretization_occupancy),
-                    "num_error_samples": number_error_samples,
                     "num_boxes": len(discretization),
-                    "tree_information": get_shannon_information(
-                        discretization.descriptor.get_data()
-                    ),
-                    "occupancy_information": get_shannon_information(
-                        binary_discretization_occupancy
-                    ),
+                    "num_boxes_occupied": np.sum(binary_discretization_occupancy),
+                    "num_tree_nodes": len(discretization.descriptor),
+                    "tree_number_of_1s": discretization.descriptor.get_data().count(),
                     "l1error": monte_carlo_l1_error,
                 }
                 error_file.append_row(store_dict)

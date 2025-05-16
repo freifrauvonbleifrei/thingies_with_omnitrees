@@ -6,6 +6,7 @@ import os
 import functools
 from icecream import ic
 import subprocess
+import thingi10k
 import trimesh
 
 from thingies_utils import mesh_to_unit_cube
@@ -41,6 +42,12 @@ if __name__ == "__main__":
         help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
         default=2048,
     )
+    parser.add_argument(
+        "--thingi_index",
+        type=int,
+        help="index of the thingi to use, if not specified, all thingies will be used",
+        default=None,
+    )
     args = parser.parse_args()
 
     parsed_number_tree_boxes = args.number_tree_boxes.split("-")
@@ -55,7 +62,7 @@ if __name__ == "__main__":
     else:
         raise ValueError("wrong formatting for number_tree_boxes")
 
-    non_thingies: list[dict] = []
+    special_thingies: list[dict] = []
 
     # tetrahedron mesh
     mesh = trimesh.Trimesh(
@@ -64,11 +71,9 @@ if __name__ == "__main__":
         process=True,
     )
 
-    if not mesh.is_watertight:
-        raise ValueError(f"Mesh is not watertight")
     mesh = mesh_to_unit_cube(mesh)
 
-    non_thingies.append(
+    special_thingies.append(
         {
             "mesh": mesh,
             "fake_file_id": 0,
@@ -77,23 +82,62 @@ if __name__ == "__main__":
 
     # icosphere mesh
     mesh = trimesh.creation.icosphere(subdivisions=4)
-    if not mesh.is_watertight:
-        raise ValueError(f"Mesh is not watertight")
     mesh = mesh_to_unit_cube(mesh)
-    non_thingies.append(
+    special_thingies.append(
         {
             "mesh": mesh,
             "fake_file_id": 1,
         }
     )
 
+    # construct a diagonal rod
+    mesh = trimesh.creation.cylinder(
+        radius=0.03,
+        height=1,
+        transform=trimesh.transformations.rotation_matrix(
+            angle=np.pi / 4,
+            direction=[1, 1, 0],
+            point=[0.5, 0.5, 0.5],
+        ),
+    )
+    mesh = mesh_to_unit_cube(mesh)
+    special_thingies.append(
+        {
+            "mesh": mesh,
+            "fake_file_id": 2,
+        }
+    )
+
+    use_thingies = True
+    if use_thingies:
+        thingi10k.init()
+        # use special thingies from thingi10k
+        # 53750: Hilbert cube
+        # 100349: kitty
+        # 187279: cube
+        for id in [53750, 100349, 187279]:
+            thingi = thingi10k.dataset(file_id=id)[0]
+            mesh_data = np.load(thingi["file_path"])
+            mesh_vertices = mesh_data["vertices"]
+            mesh_faces = mesh_data["facets"]
+            mesh = trimesh.Trimesh(vertices=mesh_vertices, faces=mesh_faces)
+            mesh = mesh_to_unit_cube(mesh)
+            special_thingies.append(
+                {
+                    "mesh": mesh,
+                    "fake_file_id": id,
+                }
+            )
+
     azim = 105
-    for non_thingy in non_thingies:
+    for special_thingy in special_thingies:
+        if not special_thingy["mesh"].is_watertight:
+            raise ValueError(f"Mesh is not watertight")
         # plot the original mesh
         plot_mesh_with_pyplot(
-            non_thingy["mesh"],
+            special_thingy["mesh"],
             azim=azim,
-            filename=str(non_thingy["fake_file_id"]) + "_original",
+            filename=str(special_thingy["fake_file_id"]) + "_original",
         )
 
     importance_function = functools.partial(
@@ -125,46 +169,54 @@ if __name__ == "__main__":
         ba.bitarray("111"),
     ]
 
-    discretization_octree, queue_octree = get_initial_tree_and_queue(
-        mesh, importance_function, allowed_refinements_octree
-    )
-    discretization_omnitree_1, queue_omnitree_1 = get_initial_tree_and_queue(
-        mesh, importance_function, allowed_refinements_omnitree_1
-    )
-    discretization_omnitree_2, queue_omnitree_2 = get_initial_tree_and_queue(
-        mesh, importance_function, allowed_refinements_omnitree_2
-    )
-    discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
-        mesh, importance_function, allowed_refinements_omnitree_3
-    )
+    error_file = ErrorL1File(args.sobol_samples)
 
-    tree_tuples = [
-        (allowed_refinements_octree, discretization_octree, queue_octree, "octree"),
-        (
-            allowed_refinements_omnitree_1,
-            discretization_omnitree_1,
-            queue_omnitree_1,
-            "omnitree_1",
-        ),
-        (
-            allowed_refinements_omnitree_2,
-            discretization_omnitree_2,
-            queue_omnitree_2,
-            "omnitree_2",
-        ),
-        (
-            allowed_refinements_omnitree_3,
-            discretization_omnitree_3,
-            queue_omnitree_3,
-            "omnitree_3",
-        ),
-    ]
+    # if thingi_index is given, use only that one
+    if args.thingi_index is not None:
+        special_thingies = [
+            special_thingies[args.thingi_index],
+        ]
 
-    error_file = ErrorL1File(str(args.sobol_samples))
+    for special_thingy in special_thingies:
+        mesh = special_thingy["mesh"]
+        fake_file_id = special_thingy["fake_file_id"]
 
-    for non_thingy in non_thingies:
-        mesh = non_thingy["mesh"]
-        fake_file_id = non_thingy["fake_file_id"]
+
+        discretization_octree, queue_octree = get_initial_tree_and_queue(
+            mesh, importance_function, allowed_refinements_octree
+        )
+        discretization_omnitree_1, queue_omnitree_1 = get_initial_tree_and_queue(
+            mesh, importance_function, allowed_refinements_omnitree_1
+        )
+        discretization_omnitree_2, queue_omnitree_2 = get_initial_tree_and_queue(
+            mesh, importance_function, allowed_refinements_omnitree_2
+        )
+        discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
+            mesh, importance_function, allowed_refinements_omnitree_3
+        )
+
+        tree_tuples = [
+            (allowed_refinements_octree, discretization_octree, queue_octree, "octree"),
+            (
+                allowed_refinements_omnitree_1,
+                discretization_omnitree_1,
+                queue_omnitree_1,
+                "omnitree_1",
+            ),
+            (
+                allowed_refinements_omnitree_2,
+                discretization_omnitree_2,
+                queue_omnitree_2,
+                "omnitree_2",
+            ),
+            (
+                allowed_refinements_omnitree_3,
+                discretization_omnitree_3,
+                queue_omnitree_3,
+                "omnitree_3",
+            ),
+        ]
+
         for allowed_refinements, discretization, queue, tree_name in tree_tuples:
             for allowed_tree_boxes in number_tree_boxes:
                 discretization, queue = tree_voxel_thingi(
@@ -189,7 +241,7 @@ if __name__ == "__main__":
 
                 # and evaluate the error immediately
                 number_error_samples = 131072
-                number_occupancy_samples = 2048
+                number_occupancy_samples = args.sobol_samples
                 binary_discretization_occupancy = get_binary_discretization_occupancy(
                     discretization, mesh, number_occupancy_samples
                 )
@@ -223,27 +275,22 @@ if __name__ == "__main__":
                         "allowed_tree_boxes": allowed_tree_boxes,
                         "num_sobol_samples": args.sobol_samples,
                         "num_occupancy_samples": number_occupancy_samples,
-                        "num_boxes_occupied": num_boxes_occupied,
                         "num_error_samples": number_error_samples,
                         "num_boxes": len(discretization),
-                        "tree_information": get_shannon_information(
-                            discretization.descriptor.get_data()
-                        ),
-                        "occupancy_information": get_shannon_information(
-                            binary_discretization_occupancy
-                        ),
+                        "num_boxes_occupied": num_boxes_occupied,
+                        "num_tree_nodes": len(discretization.descriptor),
+                        "tree_number_of_1s": discretization.descriptor.get_data().count(),
                         "l1error": monte_carlo_l1_error,
                     }
                 )
 
                 filename_svg = filename_tree + "_eval"
-                if not num_boxes_occupied == 0:
-                    plot_binary_3d_omnitree_with_pyplot(
-                        discretization,
-                        binary_discretization_occupancy,
-                        azim=azim,
-                        filename=filename_svg,
-                    )
+                plot_binary_3d_omnitree_with_pyplot(
+                    discretization,
+                    binary_discretization_occupancy,
+                    azim=azim,
+                    filename=filename_svg,
+                )
 
     # call the thingies_merge_svgs.py script to merge the SVGs
     subprocess.run(
