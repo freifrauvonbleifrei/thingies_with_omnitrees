@@ -31,7 +31,7 @@ def aggregate_l1_by_tree(num_sobol_samples):
             num_allowed_box_variants,
             (values_per_thingi_file_id != num_allowed_box_variants).sum(),
         )
-        if len(values_per_thingi_file_id != 4166):
+        if len(values_per_thingi_file_id) != 4166:
             print(
                 f"Warning: {tree_name} has only {len(values_per_thingi_file_id)} different thingi_file_ids, expected 4166"
             )

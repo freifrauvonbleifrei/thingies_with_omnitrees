@@ -102,12 +102,23 @@ def put_box_into_priority_queue(
     skip_function,
     allowed_refinements=[ba.bitarray("111")],
 ):
-    interval = dyada.refinement.coordinates_from_box_index(discretization, box_index)
+    level_index = dyada.refinement.get_level_index_from_linear_index(
+        discretization._linearization, discretization._descriptor, box_index
+    )
+    interval = dyada.refinement.get_coordinates_from_level_index(level_index)
 
     importances = importance_function(mesh, interval, allowed_refinements)
     for refinement, importance in zip(allowed_refinements, importances):
+        # skip if the level in a given dimension would become too large (> 30)
+        skip_bc_too_fine = False
+        for d in range(len(refinement)):
+            if level_index.d_level[d] + refinement[d] > 30:
+                skip_bc_too_fine = True
+                break
         # skip if condition is met, e.g. if there is already only one point in the partition
-        if skip_function is None or not skip_function(mesh, interval, importance):
+        if not skip_bc_too_fine and (
+            skip_function is None or not skip_function(mesh, interval, importance)
+        ):
             priority_queue.put((-importance, refinement, box_index))
 
 

@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
                 # and evaluate the error immediately
                 number_error_samples = 131072
-                number_occupancy_samples = args.sobol_samples
+                number_occupancy_samples = args.sobol_samples * 8
                 binary_discretization_occupancy = get_binary_discretization_occupancy(
                     discretization, mesh, number_occupancy_samples
                 )
