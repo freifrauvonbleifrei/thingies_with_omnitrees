@@ -127,7 +127,32 @@ def aggregate_l1_by_tree(num_sobol_samples):
     df_omnitree_3_better = df_omnitree_3_better[
         df_omnitree_3_better["diff"] == df_omnitree_3_better["diff"].max()
     ]
-    ic(df_omnitree_3_better)
+
+
+def aggregate_l1_by_tree_and_id(num_sobol_samples):
+    # from multiple subfolders:
+    # (head -n 1 folder1/l1_errors_s512.csv && tail -n +2 -q folder*/l1_errors_s512.csv) > l1_errors_s512.csv
+    error_file = ErrorL1File(num_sobol_samples)
+    df = pd.read_csv(error_file.l1fileName)
+    # add a column with the occupancy ratio
+    df["occupancy_ratio"] = df["num_boxes_occupied"] / df["num_boxes"]
+
+    # group by tree, thingi_file_id and allowed_tree_boxes
+    # for each group, get mean, min, max, and median
+    df_grouped = df.groupby(["tree", "thingi_file_id", "allowed_tree_boxes"]).agg(
+        {
+            "l1error": ["mean", "min", "max", "count", "median"],
+            "occupancy_ratio": ["mean", "min", "max", "median"],
+        }
+    )
+    # flatten and save to csv
+    df_grouped.columns = [
+        "_".join(map(str, col)).strip() for col in df_grouped.columns.values
+    ]
+    df_grouped = df_grouped.reset_index()
+    ic(df_grouped)
+    # save to csv
+    df_grouped.to_csv(f"l1_errors_s{num_sobol_samples}_by_id.csv", index=False)
 
 
 if __name__ == "__main__":
@@ -138,5 +163,14 @@ if __name__ == "__main__":
         help="number of samples used for the Sobol criterion",
         default=2048,
     )
+    # optional bool argument for special thingies
+    parser.add_argument(
+        "--by_id",
+        action="store_true",
+        help="don't aggregate by tree and allowed_tree_boxes only, but also by thingi_file_id",
+    )
     args = parser.parse_args()
-    aggregate_l1_by_tree(args.sobol_samples)
+    if args.by_id:
+        aggregate_l1_by_tree_and_id(args.sobol_samples)
+    else:
+        aggregate_l1_by_tree(args.sobol_samples)
