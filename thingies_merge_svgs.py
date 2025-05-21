@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import cairosvg
 from icecream import ic
 from itertools import chain
 from svgutils.compose import Figure, SVG, Text
@@ -50,30 +51,32 @@ if __name__ == "__main__":
                     f"Warning: expected 4 SVG files for id {thingi_id}, {num_boxes} boxes, got {len(paths)}"
                 )
                 continue
+            img_original = SVG(original[0])
+            img_octree = SVG([f for f in paths if "_octree_" in f][0])
+            img_omnitree_1 = SVG([f for f in paths if "_omnitree_1_" in f][0])
+            img_omnitree_2 = SVG([f for f in paths if "_omnitree_2_" in f][0])
+            img_omnitree_3 = SVG([f for f in paths if "_omnitree_3_" in f][0])
 
-            svg_original = SVG(original[0])
-            svg_octree = SVG([f for f in paths if "_octree_" in f][0])
-            svg_omnitree_1 = SVG([f for f in paths if "_omnitree_1_" in f][0])
-            svg_omnitree_2 = SVG([f for f in paths if "_omnitree_2_" in f][0])
-            svg_omnitree_3 = SVG([f for f in paths if "_omnitree_3_" in f][0])
-            ic(svg_original.width, svg_original.height)
-            ic(svg_octree.width, svg_octree.height)
+            original_width, original_height = img_original.width, img_original.height
+            octree_width, octree_height = img_octree.width, img_octree.height
+            ic(original_width, original_height)
+            ic(octree_width, octree_height)
 
             # move original down a bit
-            original_down_shift = 0.25 * svg_octree.height
-            svg_original.moveto(0, original_down_shift)
+            original_down_shift = 0.25 * octree_height
+            img_original.moveto(0, original_down_shift)
 
             # move all except original right and!
-            right_offset = svg_original.width * 0.7
-            more_right_offset = right_offset + svg_octree.width
+            right_offset = original_width * 0.7
+            more_right_offset = right_offset + octree_width
             # octree and omnitree_1 down, omnitree_1 and omnitree_3 right
-            svg_octree.moveto(right_offset, svg_octree.height)
-            svg_omnitree_1.moveto(more_right_offset, svg_octree.height)
-            svg_omnitree_2.moveto(right_offset, 0)
-            svg_omnitree_3.moveto(more_right_offset, 0)
+            img_octree.moveto(right_offset, octree_height)
+            img_omnitree_1.moveto(more_right_offset, octree_height)
+            img_omnitree_2.moveto(right_offset, 0)
+            img_omnitree_3.moveto(more_right_offset, 0)
 
-            combined_width = svg_original.width + 2 * svg_octree.width
-            combined_height = 2 * svg_octree.height
+            combined_width = original_width + 2 * octree_width
+            combined_height = 2 * octree_height
 
             background = fromstring(
                 f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -93,47 +96,47 @@ if __name__ == "__main__":
                 "weight": "bold",
                 "color": "black",
             }
-            label_shift_up = 0.15 * svg_octree.height
+            label_shift_up = 0.15 * octree_height
 
             combined = Figure(
                 combined_width,
                 combined_height,
                 background,
-                svg_original,
+                img_original,
                 Text(
                     f"Thingi {thingi_id}",
-                    svg_original.width * 0.25,
-                    original_down_shift + svg_original.height,
+                    img_original.width * 0.25,
+                    original_down_shift + original_height,
                     size=36,
                     weight="bold",
                     color="black",
                 ),
-                svg_octree,
+                img_octree,
                 Text(
                     "Octree",
-                    right_offset + svg_octree.width * 0.25,
-                    svg_octree.height * 2 - label_shift_up,
+                    right_offset + octree_width * 0.25,
+                    octree_height * 2 - label_shift_up,
                     **tree_label_style_dict,
                 ),
-                svg_omnitree_1,
+                img_omnitree_1,
                 Text(
                     "Omnitree 1",
-                    more_right_offset + svg_octree.width * 0.25,
-                    svg_octree.height * 2 - label_shift_up,
+                    more_right_offset + octree_width * 0.25,
+                    octree_height * 2 - label_shift_up,
                     **tree_label_style_dict,
                 ),
-                svg_omnitree_2,
+                img_omnitree_2,
                 Text(
                     "Omnitree 2",
-                    right_offset + svg_octree.width * 0.25,
-                    svg_octree.height - label_shift_up,
+                    right_offset + octree_width * 0.25,
+                    octree_height - label_shift_up,
                     **tree_label_style_dict,
                 ),
-                svg_omnitree_3,
+                img_omnitree_3,
                 Text(
                     "Omnitree 3",
-                    more_right_offset + svg_octree.width * 0.25,
-                    svg_octree.height - label_shift_up,
+                    more_right_offset + octree_width * 0.25,
+                    octree_height - label_shift_up,
                     **tree_label_style_dict,
                 ),
             )
@@ -142,26 +145,22 @@ if __name__ == "__main__":
             filename = f"{thingi_id}_{num_boxes}_combined.svg"
             combined.save(filename)
 
-            thingi_svg_files.append(filename)
+            thingi_img_files.append(filename)
 
         # convert svg to png
-        for file in thingi_svg_files:
+        for file in thingi_img_files:
             ic(file)
-            # and check exit status
-
-            subprocess.run(
-                ["svgexport", f"./{file}", f"./{file}.png"], check=True
-            )  # install with sudo npm install svgexport -g
+            cairosvg.svg2png(url=file, write_to=f"{file}.png")
 
         input_file_arg_list = list(
             chain.from_iterable(
                 [
                     [
                         "-delay",
-                        "200" if i == len(thingi_svg_files) - 1 else "50",
+                        "200" if i == len(thingi_img_files) - 1 else "50",
                         f"{file}.png",
                     ]
-                    for i, file in enumerate(thingi_svg_files)
+                    for i, file in enumerate(thingi_img_files)
                 ]
             )
         )
