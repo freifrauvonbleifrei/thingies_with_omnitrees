@@ -61,12 +61,51 @@ def plot_binary_3d_omnitree_with_pyplot(
         plt.show()
 
 
+def plot_binary_3d_omnitree_with_opengl(
+    discretization: dyada.refinement.Discretization, binary_occupancy, filename
+):
+    level_indices = list(discretization.get_all_boxes_level_indices())
+    coordinates = [
+        dyada.coordinates.get_coordinates_from_level_index(box_li)
+        for box_li in level_indices
+    ]
+    projection = [0, 2, 1]
+    dyada.drawing.plot_boxes_3d_pyopengl(
+        coordinates,
+        wireframe=True,
+        alpha=0.3,
+        colors="gray",
+        filename=None,
+        projection=projection,
+    )
+
+    # filter coordinates by binary occupancy
+    coordinates = [
+        coordinates[i] for i in range(len(coordinates)) if binary_occupancy[i] == 1
+    ]
+    for coordinate in coordinates:
+        dyada.drawing.draw_cuboid_opengl(
+            coordinate,
+            wireframe=False,
+            alpha=0.15,
+            color="orange",
+            projection=projection,
+        )
+    dyada.drawing.gl_save_file(filename)
+
+
 if __name__ == "__main__":
     parser = arg.ArgumentParser()
     parser.add_argument(
         "occupancy_file",
         type=str,
         help="occupancy file ending with '_occupancy.bin', needs the corrensponding tree file '_3d.bin' in the same folder too",
+    )
+    parser.add_argument(
+        "--backend",
+        type=str,
+        help="either 'opengl' or 'matplotlib'",
+        default="matplotlib",
     )
     args = parser.parse_args()
 
@@ -99,10 +138,18 @@ if __name__ == "__main__":
 
     num_boxes_occupied = np.sum(binary_discretization_occupancy)
     ic(filename_tree[:-7], num_boxes_occupied)
-    filename_svg = filename_tree[:-7] + "_eval"
-    plot_binary_3d_omnitree_with_pyplot(
-        discretization,
-        binary_discretization_occupancy,
-        azim=220,
-        filename=filename_svg,
-    )
+    filename_img = filename_tree[:-7] + "_eval"
+    ic(len(discretization), len(binary_discretization_occupancy))
+    if args.backend == "opengl":
+        plot_binary_3d_omnitree_with_opengl(
+            discretization,
+            binary_discretization_occupancy,
+            filename=filename_img,
+        )
+    else:
+        plot_binary_3d_omnitree_with_pyplot(
+            discretization,
+            binary_discretization_occupancy,
+            azim=220,
+            filename=filename_img,
+        )

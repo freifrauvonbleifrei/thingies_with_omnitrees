@@ -26,6 +26,7 @@ from thingies_with_omnitrees_evaluate import (
     get_monte_carlo_l1_error,
     get_shannon_information,
     plot_mesh_with_pyplot,
+    plot_mesh_with_opengl,
 )
 
 
@@ -134,9 +135,8 @@ if __name__ == "__main__":
         if not special_thingy["mesh"].is_watertight:
             raise ValueError(f"Mesh is not watertight")
         # plot the original mesh
-        plot_mesh_with_pyplot(
+        plot_mesh_with_opengl(
             special_thingy["mesh"],
-            azim=azim,
             filename=str(special_thingy["fake_file_id"]) + "_original",
         )
 

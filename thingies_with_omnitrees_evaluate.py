@@ -5,12 +5,20 @@ from filelock import FileLock
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgb
 from icecream import ic
 import os.path
 import pandas as pd
 import thingi10k
 import trimesh
 
+try:
+    import OpenGL.GL as gl  # type: ignore
+except ImportError:
+    pass
+
+
+import dyada.coordinates
 import dyada.linearization
 import dyada.refinement
 
@@ -149,6 +157,45 @@ def plot_mesh_with_pyplot(mesh: trimesh.Trimesh, azim=200, filename=None):
         plt.close()
     else:
         plt.show()
+
+
+def plot_mesh_with_opengl(mesh: trimesh.Trimesh, filename):
+    # draw unit cube as bounding box
+    coordinates = [dyada.coordinates.interval_from_sequences([0, 0, 0], [1, 1, 1])]
+    projection = [0, 2, 1]
+    dyada.drawing.plot_boxes_3d_pyopengl(
+        coordinates,
+        wireframe=True,
+        alpha=0.3,
+        colors="gray",
+        filename=None,
+        projection=projection,
+    )
+    gl.glEnable(gl.GL_DEPTH_TEST)
+
+    vertices = np.array(mesh.vertices, dtype=np.float32)
+    edges = mesh.edges_unique
+    faces = np.array(mesh.faces, dtype=np.uint32)
+
+    gl.glBegin(gl.GL_LINES)
+    gl.glColor4fv((*to_rgb("black"), 1.0))
+    for edge in edges:
+        for idx in edge:
+            gl.glVertex3fv(vertices[idx][projection])
+    gl.glEnd()
+
+    gl.glEnable(gl.GL_POLYGON_OFFSET_FILL)  # try to avoid overdrawing
+    gl.glPolygonOffset(2.0, 2.0)
+    gl.glBegin(gl.GL_TRIANGLES)
+    gl.glColor4fv((*to_rgb("orange"), 0.2))
+    for face in mesh.faces:
+        # normal = mesh.face_normals[face]
+        # gl.glNormal3fv(normal)
+        for idx in face:
+            gl.glVertex3fv(vertices[idx][projection])
+    gl.glEnd()
+    gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
+    dyada.drawing.gl_save_file(filename)
 
 
 def get_shannon_information(
