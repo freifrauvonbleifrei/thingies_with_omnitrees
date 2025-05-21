@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # construct a diagonal rod
     mesh = trimesh.creation.cylinder(
-        radius=0.03,
+        radius=0.05,
         height=1,
         transform=trimesh.transformations.rotation_matrix(
             angle=np.pi / 4,
