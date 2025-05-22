@@ -16,16 +16,20 @@ import dyada.coordinates
 import dyada.linearization
 import dyada.refinement
 
-from thingies_utils import mesh_to_unit_cube, check_inside_or_outside_mesh
+from thingies_utils import (
+    mesh_to_unit_cube,
+    check_inside_or_outside_mesh,
+    check_inside_or_outside_mesh_temporal,
+)
 
 
 @functools.cache
-def get_unit_cube_sa_problem(num_sobol_samples: int):
+def get_unit_cube_sa_problem(num_sobol_samples: int, num_dimensions: int = 3):
     # cf. https://salib.readthedocs.io/en/latest/user_guide/basics.html#an-example
     problem = {
-        "num_vars": 3,
-        "names": ["x0", "x1", "x2"],
-        "bounds": [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
+        "num_vars": num_dimensions,
+        "names": [f"x{i}" for i in range(num_dimensions)],
+        "bounds": [[0.0, 1.0]] * num_dimensions,
     }
     param_values = saltelli.sample(problem, num_sobol_samples)
     return problem, param_values
@@ -37,21 +41,30 @@ def get_sobol_importances(
     refinements: list[ba.bitarray],
     num_sobol_samples: int,
 ):
-    problem, sampling_points_unit_cube = get_unit_cube_sa_problem(num_sobol_samples)
+    num_dimensions = len(interval.upper_bound)
+    problem, sampling_points_unit_cube = get_unit_cube_sa_problem(
+        num_sobol_samples, num_dimensions
+    )
     # transform the sampling points to the current interval
     extent = interval.upper_bound - interval.lower_bound
     sampling_points_transformed = (
         sampling_points_unit_cube * extent + interval.lower_bound
     )
     # evaluate if points are inside or outside the mesh
-    is_inside = check_inside_or_outside_mesh(mesh, sampling_points_transformed)
+    if num_dimensions == 3:
+        is_inside = check_inside_or_outside_mesh(mesh, sampling_points_transformed)
+    elif num_dimensions == 4:
+        is_inside = check_inside_or_outside_mesh_temporal(
+            mesh, sampling_points_transformed
+        )
     total_variance = np.var(is_inside)
 
     # multiply by total variance and interval volume
     scaling_factor = total_variance * np.prod(
         interval.upper_bound - interval.lower_bound
     )
-    if refinements == [ba.bitarray("111")]:
+    if len(refinements) == 1 and len(refinements[0]) == refinements[0].count(1):
+        # if only ones, return the scaling factor
         return [scaling_factor]
     else:
         if not np.any(is_inside) or np.all(is_inside):
@@ -63,22 +76,20 @@ def get_sobol_importances(
 
         importances = []
         for refinement in refinements:
+            refinement = ba.bitarray(refinement)
             if refinement == ba.bitarray("111"):
                 importance = 1.0 - Si["S1"].sum() - Si["S2"].sum()
-            elif refinement == ba.bitarray("100"):
-                importance = Si["S1"][0]
-            elif refinement == ba.bitarray("010"):
-                importance = Si["S1"][1]
-            elif refinement == ba.bitarray("001"):
-                importance = Si["S1"][2]
-            elif refinement == ba.bitarray("110"):
-                importance = Si["S2"][0, 1]
-            elif refinement == ba.bitarray("011"):
-                importance = Si["S2"][1, 2]
-            elif refinement == ba.bitarray("101"):
-                importance = Si["S2"][0, 2]
+            elif refinement.count(1) == 1:
+                # 1d sensitivity indices -> only
+                index_of_1 = refinement.index(1)
+                importance = Si["S1"][index_of_1]
+            elif refinement.count(1) == 2:
+                # 2d sensitivity indices
+                index_of_1 = refinement.index(1)
+                index_of_2 = refinement.index(1, index_of_1 + 1)
+                importance = Si["S2"][index_of_1, index_of_2]
             else:
-                raise ValueError
+                raise ValueError("unknown refinement {}".format(refinement))
             importances.append(importance * scaling_factor)
     return importances
 
@@ -115,7 +126,7 @@ def put_box_into_priority_queue(
             if level_index.d_level[d] + refinement[d] > 30:
                 skip_bc_too_fine = True
                 break
-        # skip if condition is met, e.g. if there is already only one point in the partition
+        # skip if condition is met, e.g. too fine or 0 importance
         if not skip_bc_too_fine and (
             skip_function is None or not skip_function(mesh, interval, importance)
         ):
@@ -148,9 +159,11 @@ def get_initial_priority_queue(
 def get_initial_tree_and_queue(
     mesh: trimesh.Trimesh, importance_function, allowed_refinements
 ):
+    num_dimensions = len(allowed_refinements[0])
+    assert all([len(r) == num_dimensions for r in allowed_refinements])
     discretization = dyada.refinement.Discretization(
         dyada.linearization.MortonOrderLinearization(),
-        dyada.refinement.RefinementDescriptor(3, 1),
+        dyada.refinement.RefinementDescriptor(num_dimensions, 0),
     )
     priority_queue: PriorityQueue = get_initial_priority_queue(
         discretization,
