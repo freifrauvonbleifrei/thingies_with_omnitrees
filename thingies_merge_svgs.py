@@ -66,10 +66,12 @@ if __name__ == "__main__":
                     f"Warning: expected 4 SVG files for id {thingi_id}, {num_boxes} boxes, got {len(paths)}"
                 )
                 continue
-            paths = [[f for f in paths if "_octree_" in f][0], 
-                        [f for f in paths if "_omnitree_1_" in f][0],
-                        [f for f in paths if "_omnitree_2_" in f][0],
-                        [f for f in paths if "_omnitree_3_" in f][0]]
+            paths = [
+                [f for f in paths if "_octree_" in f][0],
+                [f for f in paths if "_omnitree_1_" in f][0],
+                [f for f in paths if "_omnitree_2_" in f][0],
+                [f for f in paths if "_omnitree_3_" in f][0],
+            ]
             if args.img_extension == "svg":
                 img_original = SVG(original[0])
                 img_octree = SVG(paths[0])
@@ -77,7 +79,10 @@ if __name__ == "__main__":
                 img_omnitree_2 = SVG(paths[2])
                 img_omnitree_3 = SVG(paths[3])
 
-                original_width, original_height = img_original.width, img_original.height
+                original_width, original_height = (
+                    img_original.width,
+                    img_original.height,
+                )
                 octree_width, octree_height = img_octree.width, img_octree.height
             else:
                 width = 1024
@@ -92,9 +97,7 @@ if __name__ == "__main__":
                 with open(paths[2], "rb") as omni_2_img_file:
                     img_omnitree_2 = ImageElement(omni_2_img_file, width, height)
                 with open(paths[3], "rb") as omni_3_img_file:
-                    img_omnitree_3 = ImageElement(
-                        omni_3_img_file, width, height
-                    )
+                    img_omnitree_3 = ImageElement(omni_3_img_file, width, height)
                 original_width, original_height = width, height
                 octree_width, octree_height = width, height
 
@@ -207,7 +210,9 @@ if __name__ == "__main__":
 
         # create gif
         subprocess.run(
-            ["convert"] + input_file_arg_list + [f"{thingi_id}_combined.gif"]
+            ["convert"]
+            + input_file_arg_list
+            + [f"{thingi_id}_{args.img_extension}_combined.gif"]
         )
 
         # remove the png files
