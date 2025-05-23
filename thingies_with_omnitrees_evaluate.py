@@ -19,8 +19,8 @@ except ImportError:
 
 
 import dyada.coordinates
+import dyada.discretization
 import dyada.linearization
-import dyada.refinement
 
 
 from thingies_utils import (
@@ -74,7 +74,7 @@ class ErrorL1File:
 
 
 def check_inside_or_outside_tree(
-    discretization: dyada.refinement.Discretization,
+    discretization: dyada.discretization.Discretization,
     binary_discretization_occupancy: np.ndarray,
     points: np.ndarray,
 ) -> npt.NDArray[np.bool_]:
@@ -88,7 +88,7 @@ def check_inside_or_outside_tree(
 
 def get_monte_carlo_l1_error(
     mesh: trimesh.Trimesh,
-    discretization: dyada.refinement.Discretization,
+    discretization: dyada.discretization.Discretization,
     binary_discretization_occupancy: np.ndarray,
     num_samples: int,
 ) -> float:
@@ -109,7 +109,7 @@ def get_monte_carlo_l1_error(
 
 
 def get_binary_discretization_occupancy(
-    discretization: dyada.refinement.Discretization,
+    discretization: dyada.discretization.Discretization,
     mesh: trimesh.Trimesh,
     num_samples: int,
 ):
@@ -335,9 +335,11 @@ if __name__ == "__main__":
                     print(filename_binary + " does not exist, skipping")
                     continue
 
-                discretization = dyada.refinement.Discretization(
+                discretization = dyada.discretization.Discretization(
                     dyada.linearization.MortonOrderLinearization(),
-                    dyada.refinement.RefinementDescriptor.from_file(filename_binary),
+                    dyada.discretization.RefinementDescriptor.from_file(
+                        filename_binary
+                    ),
                 )
 
                 number_error_samples = 131072

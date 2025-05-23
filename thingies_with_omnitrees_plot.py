@@ -7,13 +7,14 @@ from icecream import ic
 import os.path
 
 import dyada.coordinates
+import dyada.discretization
 import dyada.drawing
 import dyada.linearization
 import dyada.refinement
 
 
 def plot_binary_3d_omnitree_with_pyplot(
-    discretization: dyada.refinement.Discretization,
+    discretization: dyada.discretization.Discretization,
     binary_occupancy,
     azim=200,
     filename=None,
@@ -62,7 +63,7 @@ def plot_binary_3d_omnitree_with_pyplot(
 
 
 def plot_binary_3d_omnitree_with_opengl(
-    discretization: dyada.refinement.Discretization, binary_occupancy, filename
+    discretization: dyada.discretization.Discretization, binary_occupancy, filename
 ):
     level_indices = list(discretization.get_all_boxes_level_indices())
     coordinates = [
@@ -118,9 +119,9 @@ if __name__ == "__main__":
         print(args.occupancy_file + " does not exist, returning")
         exit(1)
 
-    discretization = dyada.refinement.Discretization(
+    discretization = dyada.discretization.Discretization(
         dyada.linearization.MortonOrderLinearization(),
-        dyada.refinement.RefinementDescriptor.from_file(filename_tree),
+        dyada.discretization.RefinementDescriptor.from_file(filename_tree),
     )
 
     with open(args.occupancy_file, "rb") as f:

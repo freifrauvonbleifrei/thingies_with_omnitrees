@@ -13,6 +13,7 @@ import trimesh
 
 import dyada
 import dyada.coordinates
+import dyada.discretization
 import dyada.linearization
 import dyada.refinement
 
@@ -107,16 +108,16 @@ def skip_function_no_importance(
 def put_box_into_priority_queue(
     box_index: int,
     priority_queue: PriorityQueue,
-    discretization: dyada.refinement.Discretization,
+    discretization: dyada.discretization.Discretization,
     mesh: trimesh.Trimesh,
     importance_function,
     skip_function,
     allowed_refinements=[ba.bitarray("111")],
 ):
-    level_index = dyada.refinement.get_level_index_from_linear_index(
+    level_index = dyada.discretization.get_level_index_from_linear_index(
         discretization._linearization, discretization._descriptor, box_index
     )
-    interval = dyada.refinement.get_coordinates_from_level_index(level_index)
+    interval = dyada.discretization.get_coordinates_from_level_index(level_index)
 
     importances = importance_function(mesh, interval, allowed_refinements)
     for refinement, importance in zip(allowed_refinements, importances):
@@ -134,7 +135,7 @@ def put_box_into_priority_queue(
 
 
 def get_initial_priority_queue(
-    discretization: dyada.refinement.Discretization,
+    discretization: dyada.discretization.Discretization,
     mesh: trimesh.Trimesh,
     importance_function,
     allowed_refinements=[ba.bitarray("111")],
@@ -161,9 +162,9 @@ def get_initial_tree_and_queue(
 ):
     num_dimensions = len(allowed_refinements[0])
     assert all([len(r) == num_dimensions for r in allowed_refinements])
-    discretization = dyada.refinement.Discretization(
+    discretization = dyada.discretization.Discretization(
         dyada.linearization.MortonOrderLinearization(),
-        dyada.refinement.RefinementDescriptor(num_dimensions, 0),
+        dyada.discretization.RefinementDescriptor(num_dimensions, 0),
     )
     priority_queue: PriorityQueue = get_initial_priority_queue(
         discretization,
@@ -182,7 +183,7 @@ def tree_voxel_thingi(
     importance_function,
     skip_function,
     allowed_refinements,
-) -> tuple[dyada.refinement.Discretization, PriorityQueue]:
+) -> tuple[dyada.discretization.Discretization, PriorityQueue]:
 
     too_fine = False
     # grow the tree until the desired number of boxes is reached
