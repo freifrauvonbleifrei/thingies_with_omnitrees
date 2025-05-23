@@ -179,12 +179,10 @@ if __name__ == "__main__":
         ba.frozenbitarray(permutation)
         for permutation in multiset_permutations([1, 1, 0, 0], num_dimensions)
     }
-
     allowed_refinements_omnitree_3 = allowed_refinements_omnitree_2 | {
         ba.frozenbitarray(permutation)
         for permutation in multiset_permutations([1, 1, 1, 0], num_dimensions)
     }
-    ic(allowed_refinements_omnitree_3)
 
     error_file = ErrorL1File(args.sobol_samples)
 

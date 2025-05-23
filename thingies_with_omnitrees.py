@@ -64,7 +64,7 @@ def get_sobol_importances(
         interval.upper_bound - interval.lower_bound
     )
     if len(refinements) == 1 and len(refinements[0]) == refinements[0].count(1):
-        # if only ones, return the scaling factor
+        # if only ones (=> octree), return the scaling factor
         return [scaling_factor]
     else:
         if not np.any(is_inside) or np.all(is_inside):

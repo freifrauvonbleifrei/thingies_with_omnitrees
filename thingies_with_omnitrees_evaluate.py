@@ -23,7 +23,11 @@ import dyada.linearization
 import dyada.refinement
 
 
-from thingies_utils import mesh_to_unit_cube, check_inside_or_outside_mesh
+from thingies_utils import (
+    mesh_to_unit_cube,
+    check_inside_or_outside_mesh,
+    check_inside_or_outside_mesh_temporal,
+)
 
 
 class ErrorL1File:
@@ -89,9 +93,13 @@ def get_monte_carlo_l1_error(
     num_samples: int,
 ) -> float:
     # generate random points in the unit cube
-    points = np.random.rand(num_samples, 3)
+    num_dimensions = discretization.descriptor.get_num_dimensions()
+    points = np.random.rand(num_samples, num_dimensions)
 
-    is_inside_mesh = check_inside_or_outside_mesh(mesh, points)
+    if num_dimensions == 4:
+        is_inside_mesh = check_inside_or_outside_mesh_temporal(mesh, points)
+    else:
+        is_inside_mesh = check_inside_or_outside_mesh(mesh, points)
     is_inside_tree = check_inside_or_outside_tree(
         discretization, binary_discretization_occupancy, points
     )
@@ -105,18 +113,26 @@ def get_binary_discretization_occupancy(
     mesh: trimesh.Trimesh,
     num_samples: int,
 ):
+    num_dimensions = discretization.descriptor.get_num_dimensions()
+    random_points = np.random.rand(num_samples, num_dimensions)
     binary_discretization_occupancy = np.zeros(len(discretization), dtype=bool)
     for box_index in range(len(discretization)):
-        interval = dyada.refinement.coordinates_from_box_index(
+        interval = dyada.discretization.coordinates_from_box_index(
             discretization, box_index
         )
         # get random points in the interval
         random_points_in_interval = (
-            np.random.rand(num_samples, 3)
-            * (interval.upper_bound - interval.lower_bound)
+            random_points * (interval.upper_bound - interval.lower_bound)
             + interval.lower_bound
         )
-        if np.mean(check_inside_or_outside_mesh(mesh, random_points_in_interval)) > 0.5:
+        if num_dimensions == 4:
+            is_inside = check_inside_or_outside_mesh_temporal(
+                mesh, random_points_in_interval
+            )
+        else:
+            is_inside = check_inside_or_outside_mesh(mesh, random_points_in_interval)
+
+        if np.mean(is_inside) > 0.5:
             binary_discretization_occupancy[box_index] = True
     return binary_discretization_occupancy
 
@@ -126,7 +142,7 @@ def get_mesh_from_discretization(discretization, binary_discretization_occupancy
     list_of_boxes = []
     for box_index in range(len(discretization)):
         if binary_discretization_occupancy[box_index]:
-            interval = dyada.refinement.coordinates_from_box_index(
+            interval = dyada.discretization.coordinates_from_box_index(
                 discretization, box_index
             )
             # box = trimesh.creation.box(bounds=interval)

@@ -1,6 +1,8 @@
-import trimesh
+from copy import deepcopy
+from functools import lru_cache
 import numpy as np
 import numpy.typing as npt
+import trimesh
 
 
 def mesh_to_unit_cube(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
@@ -25,8 +27,8 @@ def check_inside_or_outside_mesh(
 
 
 def check_inside_or_outside_mesh_temporal(
-    mesh: trimesh.Trimesh, points: npt.NDArray
-) -> np.array:
+    mesh: trimesh.Trimesh, points: npt.NDArray[np.float64]
+) -> npt.NDArray[np.bool_]:
     assert points.shape[1] == 4
     # allocate empty array for results
     is_inside = np.empty(points.shape[0], dtype=bool)
