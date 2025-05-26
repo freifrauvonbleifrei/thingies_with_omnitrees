@@ -2,6 +2,7 @@
 import argparse as arg
 import bitarray as ba
 from filelock import FileLock
+from itertools import pairwise
 import numpy as np
 import numpy.typing as npt
 import matplotlib.pyplot as plt
@@ -26,7 +27,7 @@ import dyada.linearization
 from thingies_utils import (
     mesh_to_unit_cube,
     check_inside_or_outside_mesh,
-    check_inside_or_outside_mesh_temporal,
+    check_inside_or_outside_mesh_at_time,
 )
 
 
@@ -86,6 +87,37 @@ def check_inside_or_outside_tree(
     return is_inside
 
 
+def get_all_time_slices(
+    discretization_4d: dyada.discretization.Discretization,
+    binary_discretization_occupancy: np.ndarray,
+):
+    # get all time slices of the discretization
+    num_dimensions = discretization_4d.descriptor.get_num_dimensions()
+    assert num_dimensions == 4
+    time_slices: dict[
+        float, tuple[dyada.discretization.Discretization, npt.NDArray[np.bool_]]
+    ] = {}
+    start_time = 0.0
+    while start_time < 1.0:
+        time_slice, mapping, level_t = discretization_4d.slice(
+            [None, None, None, start_time], get_level=True
+        )
+        box_mapping = {
+            discretization_4d.descriptor.to_box_index(
+                k
+            ): time_slice.descriptor.to_box_index(v)
+            for k, v in mapping.items()
+            if discretization_4d.descriptor.is_box(k)
+        }
+        sliced_binary_occupancy = np.zeros(len(time_slice), dtype=bool)
+        for k, v in box_mapping.items():
+            sliced_binary_occupancy[v] = binary_discretization_occupancy[k]
+        time_slices[start_time] = (time_slice, sliced_binary_occupancy)
+        start_time += 2.0 ** -level_t[3]
+    time_slices[1.0] = (None, None)  # add the last time slice for completeness
+    return time_slices
+
+
 def get_monte_carlo_l1_error(
     mesh: trimesh.Trimesh,
     discretization: dyada.discretization.Discretization,
@@ -94,16 +126,46 @@ def get_monte_carlo_l1_error(
 ) -> float:
     # generate random points in the unit cube
     num_dimensions = discretization.descriptor.get_num_dimensions()
-    points = np.random.rand(num_samples, num_dimensions)
 
     if num_dimensions == 4:
-        is_inside_mesh = check_inside_or_outside_mesh_temporal(mesh, points)
+        num_temporal_samples = int(num_samples ** (1 / num_dimensions))
+        temporal_samples = np.random.rand(num_temporal_samples)
+        num_spatial_samples = num_samples // num_temporal_samples
+        spatial_samples = np.random.rand(num_spatial_samples, num_dimensions - 1)
+        means_per_time = np.zeros((num_temporal_samples), dtype=np.float64)
+        tree_time_slices = get_all_time_slices(
+            discretization, binary_discretization_occupancy
+        )
+        for i, time in enumerate(temporal_samples):
+            is_inside_mesh = check_inside_or_outside_mesh_at_time(
+                mesh, spatial_samples, time
+            )
+            tree_time_slice = discretization.slice([None, None, None, time])
+            # find the right time slice in the tree
+            time_found = False
+            for t_slice_time_lower, t_slice_time_upper in pairwise(
+                tree_time_slices.keys()
+            ):
+                if time >= t_slice_time_lower and time < t_slice_time_upper:
+                    time_found = True
+                    tree_time_slice, binary_discretization_occupancy_slice = (
+                        tree_time_slices[t_slice_time_lower]
+                    )
+                    is_inside_tree = check_inside_or_outside_tree(
+                        tree_time_slice,
+                        binary_discretization_occupancy_slice,
+                        spatial_samples,
+                    )
+                    break
+            assert time_found
+            means_per_time[i] = (is_inside_mesh ^ is_inside_tree).mean()
+        return means_per_time.mean()
     else:
+        points = np.random.rand(num_samples, num_dimensions)
         is_inside_mesh = check_inside_or_outside_mesh(mesh, points)
     is_inside_tree = check_inside_or_outside_tree(
         discretization, binary_discretization_occupancy, points
     )
-
     # calculate the L1 error
     return (is_inside_mesh ^ is_inside_tree).mean()
 
@@ -114,22 +176,45 @@ def get_binary_discretization_occupancy(
     num_samples: int,
 ):
     num_dimensions = discretization.descriptor.get_num_dimensions()
-    random_points = np.random.rand(num_samples, num_dimensions)
+    random_points_3d = np.random.rand(num_samples, 3)
     binary_discretization_occupancy = np.zeros(len(discretization), dtype=bool)
+    if num_dimensions == 4:
+        num_temporal_samples = int(num_samples ** (1 / num_dimensions))
+        temporal_samples = np.random.rand(num_temporal_samples)
+        num_spatial_samples = num_samples // num_temporal_samples
+        for box_index in range(len(discretization)):
+            interval = dyada.discretization.coordinates_from_box_index(
+                discretization, box_index
+            )
+            random_points_in_interval = (
+                random_points_3d[:num_spatial_samples]
+                * (interval.upper_bound[:3] - interval.lower_bound[:3])
+                + interval.lower_bound[:3]
+            )
+            times_in_interval = (
+                temporal_samples * (interval.upper_bound[3] - interval.lower_bound[3])
+                + interval.lower_bound[3]
+            )
+            is_inside_at_time = np.zeros(num_temporal_samples, dtype=np.float64)
+            for i, time in enumerate(times_in_interval):
+                is_inside_at_time[i] = np.mean(
+                    check_inside_or_outside_mesh_at_time(
+                        mesh, random_points_in_interval, time
+                    )
+                )
+            if np.mean(is_inside_at_time) > 0.5:
+                binary_discretization_occupancy[box_index] = True
+
+    else:
     for box_index in range(len(discretization)):
         interval = dyada.discretization.coordinates_from_box_index(
             discretization, box_index
         )
         # get random points in the interval
         random_points_in_interval = (
-            random_points * (interval.upper_bound - interval.lower_bound)
+                random_points_3d * (interval.upper_bound - interval.lower_bound)
             + interval.lower_bound
-        )
-        if num_dimensions == 4:
-            is_inside = check_inside_or_outside_mesh_temporal(
-                mesh, random_points_in_interval
             )
-        else:
             is_inside = check_inside_or_outside_mesh(mesh, random_points_in_interval)
 
         if np.mean(is_inside) > 0.5:

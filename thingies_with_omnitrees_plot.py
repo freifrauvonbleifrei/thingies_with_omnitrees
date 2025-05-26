@@ -4,13 +4,15 @@ import bitarray as ba
 import numpy as np
 import matplotlib.pyplot as plt
 from icecream import ic
+from itertools import pairwise
 import os.path
 
 import dyada.coordinates
 import dyada.discretization
 import dyada.drawing
 import dyada.linearization
-import dyada.refinement
+
+from thingies_with_omnitrees_evaluate import get_all_time_slices
 
 
 def plot_binary_3d_omnitree_with_pyplot(
@@ -110,10 +112,20 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    filename_tree = args.occupancy_file[:-14] + "_3d.bin"
+    filename_tree_3d = args.occupancy_file[:-14] + "_3d.bin"
+    filename_tree_4d = args.occupancy_file[:-14] + "_4d.bin"
+    filename_tree = filename_tree_3d
 
-    if not os.path.isfile(filename_tree):
-        print(filename_tree + " does not exist, returning")
+    if not os.path.isfile(filename_tree_3d):
+        if os.path.isfile(filename_tree_4d):
+            filename_tree = filename_tree_4d
+        else:
+            print(
+                filename_tree_3d
+                + " or "
+                + filename_tree_4d
+                + " does not exist, returning"
+            )
         exit(1)
     if not os.path.isfile(args.occupancy_file):
         print(args.occupancy_file + " does not exist, returning")
@@ -140,7 +152,9 @@ if __name__ == "__main__":
     num_boxes_occupied = np.sum(binary_discretization_occupancy)
     ic(filename_tree[:-7], num_boxes_occupied)
     filename_img = filename_tree[:-7] + "_eval"
+    assert len(discretization) == len(binary_discretization_occupancy)
     ic(len(discretization), len(binary_discretization_occupancy))
+    if filename_tree == filename_tree_3d:
     if args.backend == "opengl":
         plot_binary_3d_omnitree_with_opengl(
             discretization,
@@ -154,3 +168,34 @@ if __name__ == "__main__":
             azim=220,
             filename=filename_img,
         )
+    else:
+        # get all the time sliced discretizations
+        time_slices = get_all_time_slices(
+            discretization, binary_discretization_occupancy
+        )
+        ic(len(time_slices), time_slices.keys())
+
+        for time_i in range(100):
+            time = time_i * 0.01
+            time_found = False
+            for t_slice_time_lower, t_slice_time_upper in pairwise(time_slices.keys()):
+                if time >= t_slice_time_lower and time < t_slice_time_upper:
+                    time_found = True
+                    ic(f"Plotting time slice {time_i} at time {t_slice_time_lower}")
+                    discretization_at_time, binary_discretization_occupancy_at_time = (
+                        time_slices[t_slice_time_lower]
+                    )
+                    assert args.backend == "opengl"
+                    filename_img_at_time = filename_img + f"_t{time_i:03d}"
+                    plot_binary_3d_omnitree_with_opengl(
+                        discretization_at_time,
+                        binary_discretization_occupancy_at_time,
+                        filename=filename_img_at_time,
+                    )
+                    break
+            assert time_found, (
+                "Time slice not found for time",
+                time,
+                t_slice_time_lower,
+                t_slice_time_upper,
+            )
