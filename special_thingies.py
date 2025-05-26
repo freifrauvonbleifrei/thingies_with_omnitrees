@@ -51,6 +51,12 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
+        "--tree_index",
+        type=int,
+        help="index of the tree to use, if not specified, all trees will be used",
+        default=None,
+    )
+    parser.add_argument(
         "--temporal",
         action="store_true",
         help="if present, use the temporal 4d version of the thingies",
@@ -226,6 +232,10 @@ if __name__ == "__main__":
                 "omnitree_2",
             ),
         ]
+        if args.tree_index is not None:
+            # if tree_index is given, use only that one
+            tree_tuples = [tree_tuples[args.tree_index]]
+
         if not args.temporal:
             discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
                 mesh, importance_function, list(allowed_refinements_omnitree_3)
