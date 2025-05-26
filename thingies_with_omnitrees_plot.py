@@ -155,19 +155,19 @@ if __name__ == "__main__":
     assert len(discretization) == len(binary_discretization_occupancy)
     ic(len(discretization), len(binary_discretization_occupancy))
     if filename_tree == filename_tree_3d:
-    if args.backend == "opengl":
-        plot_binary_3d_omnitree_with_opengl(
-            discretization,
-            binary_discretization_occupancy,
-            filename=filename_img,
-        )
-    else:
-        plot_binary_3d_omnitree_with_pyplot(
-            discretization,
-            binary_discretization_occupancy,
-            azim=220,
-            filename=filename_img,
-        )
+        if args.backend == "opengl":
+            plot_binary_3d_omnitree_with_opengl(
+                discretization,
+                binary_discretization_occupancy,
+                filename=filename_img,
+            )
+        else:
+            plot_binary_3d_omnitree_with_pyplot(
+                discretization,
+                binary_discretization_occupancy,
+                azim=220,
+                filename=filename_img,
+            )
     else:
         # get all the time sliced discretizations
         time_slices = get_all_time_slices(

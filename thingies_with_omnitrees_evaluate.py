@@ -206,19 +206,19 @@ def get_binary_discretization_occupancy(
                 binary_discretization_occupancy[box_index] = True
 
     else:
-    for box_index in range(len(discretization)):
-        interval = dyada.discretization.coordinates_from_box_index(
-            discretization, box_index
-        )
-        # get random points in the interval
-        random_points_in_interval = (
-                random_points_3d * (interval.upper_bound - interval.lower_bound)
-            + interval.lower_bound
+        for box_index in range(len(discretization)):
+            interval = dyada.discretization.coordinates_from_box_index(
+                discretization, box_index
             )
+            # get random points in the interval
+            random_points_in_interval = (
+                    random_points_3d * (interval.upper_bound - interval.lower_bound)
+                + interval.lower_bound
+                )
             is_inside = check_inside_or_outside_mesh(mesh, random_points_in_interval)
-
-        if np.mean(is_inside) > 0.5:
-            binary_discretization_occupancy[box_index] = True
+    
+            if np.mean(is_inside) > 0.5:
+                binary_discretization_occupancy[box_index] = True
     return binary_discretization_occupancy
 
 
