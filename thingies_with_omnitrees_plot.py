@@ -173,17 +173,12 @@ if __name__ == "__main__":
         time_slices = get_all_time_slices(
             discretization, binary_discretization_occupancy
         )
-        ic(len(time_slices), time_slices.keys())
+        ic(len(time_slices))
 
         for time_i in range(100):
             time = time_i * 0.01
-            time_found = False
-            for t_slice_time_lower, t_slice_time_upper in pairwise(time_slices.keys()):
-                if time >= t_slice_time_lower and time < t_slice_time_upper:
-                    time_found = True
-                    ic(f"Plotting time slice {time_i} at time {t_slice_time_lower}")
                     discretization_at_time, binary_discretization_occupancy_at_time = (
-                        time_slices[t_slice_time_lower]
+                time_slices[time]
                     )
                     assert args.backend == "opengl"
                     filename_img_at_time = filename_img + f"_t{time_i:03d}"
@@ -191,11 +186,4 @@ if __name__ == "__main__":
                         discretization_at_time,
                         binary_discretization_occupancy_at_time,
                         filename=filename_img_at_time,
-                    )
-                    break
-            assert time_found, (
-                "Time slice not found for time",
-                time,
-                t_slice_time_lower,
-                t_slice_time_upper,
             )

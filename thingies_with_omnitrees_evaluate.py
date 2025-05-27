@@ -94,27 +94,13 @@ def get_all_time_slices(
     # get all time slices of the discretization
     num_dimensions = discretization_4d.descriptor.get_num_dimensions()
     assert num_dimensions == 4
-    time_slices: dict[
-        float, tuple[dyada.discretization.Discretization, npt.NDArray[np.bool_]]
-    ] = {}
-    start_time = 0.0
-    while start_time < 1.0:
-        time_slice, mapping, level_t = discretization_4d.slice(
-            [None, None, None, start_time], get_level=True
-        )
-        box_mapping = {
-            discretization_4d.descriptor.to_box_index(
-                k
-            ): time_slice.descriptor.to_box_index(v)
-            for k, v in mapping.items()
-            if discretization_4d.descriptor.is_box(k)
-        }
+    time_slices = dyada.discretization.SliceDictInDimension(discretization_4d, 3, True)
+    for time, _ in time_slices.items():
+        time_slice, mapping = time_slices[time]
         sliced_binary_occupancy = np.zeros(len(time_slice), dtype=bool)
-        for k, v in box_mapping.items():
+        for k, v in mapping.items():
             sliced_binary_occupancy[v] = binary_discretization_occupancy[k]
-        time_slices[start_time] = (time_slice, sliced_binary_occupancy)
-        start_time += 2.0 ** -level_t[3]
-    time_slices[1.0] = (None, None)  # add the last time slice for completeness
+        time_slices[time] = (time_slice, sliced_binary_occupancy)
     return time_slices
 
 
@@ -140,24 +126,16 @@ def get_monte_carlo_l1_error(
             is_inside_mesh = check_inside_or_outside_mesh_at_time(
                 mesh, spatial_samples, time
             )
-            tree_time_slice = discretization.slice([None, None, None, time])
             # find the right time slice in the tree
-            time_found = False
-            for t_slice_time_lower, t_slice_time_upper in pairwise(
-                tree_time_slices.keys()
-            ):
-                if time >= t_slice_time_lower and time < t_slice_time_upper:
-                    time_found = True
-                    tree_time_slice, binary_discretization_occupancy_slice = (
-                        tree_time_slices[t_slice_time_lower]
-                    )
+
+            tree_time_slice, binary_discretization_occupancy_slice = tree_time_slices[
+                time
+            ]
                     is_inside_tree = check_inside_or_outside_tree(
                         tree_time_slice,
                         binary_discretization_occupancy_slice,
                         spatial_samples,
                     )
-                    break
-            assert time_found
             means_per_time[i] = (is_inside_mesh ^ is_inside_tree).mean()
         return means_per_time.mean()
     else:
