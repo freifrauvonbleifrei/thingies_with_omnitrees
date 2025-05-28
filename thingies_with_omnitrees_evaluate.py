@@ -131,11 +131,11 @@ def get_monte_carlo_l1_error(
             tree_time_slice, binary_discretization_occupancy_slice = tree_time_slices[
                 time
             ]
-                    is_inside_tree = check_inside_or_outside_tree(
-                        tree_time_slice,
-                        binary_discretization_occupancy_slice,
-                        spatial_samples,
-                    )
+            is_inside_tree = check_inside_or_outside_tree(
+                tree_time_slice,
+                binary_discretization_occupancy_slice,
+                spatial_samples,
+            )
             means_per_time[i] = (is_inside_mesh ^ is_inside_tree).mean()
         return means_per_time.mean()
     else:

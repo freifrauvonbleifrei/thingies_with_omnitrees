@@ -177,13 +177,13 @@ if __name__ == "__main__":
 
         for time_i in range(100):
             time = time_i * 0.01
-                    discretization_at_time, binary_discretization_occupancy_at_time = (
+            discretization_at_time, binary_discretization_occupancy_at_time = (
                 time_slices[time]
-                    )
-                    assert args.backend == "opengl"
-                    filename_img_at_time = filename_img + f"_t{time_i:03d}"
-                    plot_binary_3d_omnitree_with_opengl(
-                        discretization_at_time,
-                        binary_discretization_occupancy_at_time,
-                        filename=filename_img_at_time,
+            )
+            assert args.backend == "opengl"
+            filename_img_at_time = filename_img + f"_t{time_i:03d}"
+            plot_binary_3d_omnitree_with_opengl(
+                discretization_at_time,
+                binary_discretization_occupancy_at_time,
+                filename=filename_img_at_time,
             )
