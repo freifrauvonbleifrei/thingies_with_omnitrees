@@ -79,7 +79,7 @@ def get_sobol_importances(
         for refinement in refinements:
             refinement = ba.bitarray(refinement)
             if refinement == ba.bitarray("111"):
-                importance = 1.0 - Si["S1"].sum() - Si["S2"].sum()
+                importance = 1.0 - Si["S1"].sum() - np.nansum(Si["S2"])
             elif refinement.count(1) == 1:
                 # 1d sensitivity indices -> only
                 index_of_1 = refinement.index(1)
@@ -91,6 +91,10 @@ def get_sobol_importances(
                 importance = Si["S2"][index_of_1, index_of_2]
             else:
                 raise ValueError("unknown refinement {}".format(refinement))
+            if np.isnan(importance):
+                raise ValueError(
+                    "Importance is NaN for refinement {}, Si: {}".format(refinement, Si)
+                )
             importances.append(importance * scaling_factor)
     return importances
 
