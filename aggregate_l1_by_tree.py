@@ -161,7 +161,7 @@ if __name__ == "__main__":
         "--sobol_samples",
         type=int,
         help="number of samples used for the Sobol criterion",
-        default=2048,
+        default=512,
     )
     # optional bool argument for special thingies
     parser.add_argument(

@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "--sobol_samples",
         type=int,
         help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
-        default=2048,
+        default=512,
     )
     parser.add_argument(
         "--thingi_index",
