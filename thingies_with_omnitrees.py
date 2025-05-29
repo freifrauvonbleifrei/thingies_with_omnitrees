@@ -41,6 +41,7 @@ def get_sobol_importances(
     interval: dyada.coordinates.CoordinateInterval,
     refinements: list[ba.bitarray],
     num_sobol_samples: int,
+    variance_as_first_criterion: bool,
 ):
     num_dimensions = len(interval.upper_bound)
     problem, sampling_points_unit_cube = get_unit_cube_sa_problem(
@@ -64,16 +65,21 @@ def get_sobol_importances(
     scaling_factor = total_variance * np.prod(
         interval.upper_bound - interval.lower_bound
     )
+    if variance_as_first_criterion:
+        first_criterion = scaling_factor
+    else:
+        first_criterion = 1.0
+
+    if total_variance == 0.0:
+        return first_criterion, [np.nan] * len(refinements)
     if len(refinements) == 1 and len(refinements[0]) == refinements[0].count(1):
         # if only ones (=> octree), return the scaling factor
-        return [scaling_factor]
+        return first_criterion, [scaling_factor]
     else:
-        if not np.any(is_inside) or np.all(is_inside):
-            return [0.0] * len(refinements)
         Si = sobol.analyze(problem, is_inside)
         # ic(Si)
         if Si["S2"][1, 2] == np.nan:
-            return [0.0] * len(refinements)
+            return first_criterion, [np.nan] * len(refinements)
 
         importances = []
         for refinement in refinements:
@@ -96,16 +102,17 @@ def get_sobol_importances(
                     "Importance is NaN for refinement {}, Si: {}".format(refinement, Si)
                 )
             importances.append(importance * scaling_factor)
-    return importances
+    return first_criterion, importances
 
 
 def skip_function_no_importance(
     mesh: trimesh.Trimesh,
     interval: dyada.coordinates.CoordinateInterval,
-    importance: float,
+    importance: tuple[float],
 ) -> bool:
-    if importance <= 0.0:
+    if np.any(np.isnan(importance[1:])):
         return True
+    assert importance[0] != 0.0
     return False
 
 
@@ -123,8 +130,10 @@ def put_box_into_priority_queue(
     )
     interval = dyada.discretization.get_coordinates_from_level_index(level_index)
 
-    importances = importance_function(mesh, interval, allowed_refinements)
-    for refinement, importance in zip(allowed_refinements, importances):
+    importance_main, importance_per_refinement = importance_function(
+        mesh, interval, allowed_refinements
+    )
+    for refinement, importance in zip(allowed_refinements, importance_per_refinement):
         # skip if the level in a given dimension would become too large (> 30)
         skip_bc_too_fine = False
         for d in range(len(refinement)):
@@ -132,16 +141,19 @@ def put_box_into_priority_queue(
                 skip_bc_too_fine = True
                 break
         # skip if condition is met, e.g. too fine or 0 importance
-        if not skip_bc_too_fine and (
-            skip_function is None or not skip_function(mesh, interval, importance)
+        if (
+            not skip_bc_too_fine
+            and not skip_function is None
+            and not skip_function(mesh, interval, (importance_main, importance))
         ):
-            priority_queue.put((-importance, refinement, box_index))
+            priority_queue.put((-importance_main, -importance, refinement, box_index))
 
 
 def get_initial_priority_queue(
     discretization: dyada.discretization.Discretization,
     mesh: trimesh.Trimesh,
     importance_function,
+    skip_function=skip_function_no_importance,
     allowed_refinements=[ba.bitarray("111")],
 ) -> PriorityQueue:
     # initialize the priority queue
@@ -155,8 +167,8 @@ def get_initial_priority_queue(
             discretization,
             mesh,
             importance_function,
-            None,
-            allowed_refinements,
+            skip_function=skip_function,
+            allowed_refinements=allowed_refinements,
         )
     return priority_queue
 
@@ -174,7 +186,7 @@ def get_initial_tree_and_queue(
         discretization,
         mesh,
         importance_function,
-        allowed_refinements,
+        allowed_refinements=allowed_refinements,
     )
     return discretization, priority_queue
 
@@ -196,14 +208,16 @@ def tree_voxel_thingi(
         and not priority_queue.empty()
         and not too_fine
     ):
-        _, refinement, next_refinement_index = priority_queue.get()
+        _, _, refinement, next_refinement_index = priority_queue.get()
         discretization, index_mapping = dyada.refinement.apply_single_refinement(
             discretization, next_refinement_index, refinement
         )
         # update the priority queue's old entries with the (potentially) changed indices
         new_priority_queue: PriorityQueue = PriorityQueue()
         while not priority_queue.empty():
-            i_neg_importance, i_refinement, i = priority_queue.get()
+            i_neg_main_importance, i_neg_importance, i_refinement, i = (
+                priority_queue.get()
+            )
             if allowed_refinements == [ba.bitarray("111")]:
                 assert len(index_mapping[i]) == 1
             elif len(index_mapping[i]) != 1:
@@ -211,7 +225,9 @@ def tree_voxel_thingi(
                 # -> skip
                 continue
             new_index = index_mapping[i][0]
-            new_priority_queue.put((i_neg_importance, i_refinement, new_index))
+            new_priority_queue.put(
+                (i_neg_main_importance, i_neg_importance, i_refinement, new_index)
+            )
         # calculate new importance for the new patches
         for i in index_mapping[next_refinement_index]:
             try:
@@ -325,7 +341,9 @@ if __name__ == "__main__":
         mesh = mesh_to_unit_cube(mesh)
 
         importance_function = functools.partial(
-            get_sobol_importances, num_sobol_samples=args.sobol_samples
+            get_sobol_importances,
+            num_sobol_samples=args.sobol_samples,
+            variance_as_first_criterion=False,
         )
         skip_function = skip_function_no_importance
 

@@ -167,7 +167,9 @@ if __name__ == "__main__":
             )
 
     importance_function = functools.partial(
-        get_sobol_importances, num_sobol_samples=args.sobol_samples
+        get_sobol_importances,
+        num_sobol_samples=args.sobol_samples,
+        variance_as_first_criterion=False,
     )
     skip_function = skip_function_no_importance
 
@@ -232,10 +234,6 @@ if __name__ == "__main__":
                 "omnitree_2",
             ),
         ]
-        if args.tree_index is not None:
-            # if tree_index is given, use only that one
-            tree_tuples = [tree_tuples[args.tree_index]]
-
         if not args.temporal:
             discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
                 mesh, importance_function, list(allowed_refinements_omnitree_3)
@@ -248,6 +246,9 @@ if __name__ == "__main__":
                     "omnitree_3",
                 )
             )
+        if args.tree_index is not None:
+            # if tree_index is given, use only that one
+            tree_tuples = [tree_tuples[args.tree_index]]
 
         for allowed_refinements, discretization, queue, tree_name in tree_tuples:
             for allowed_tree_boxes in number_tree_boxes:
