@@ -84,7 +84,7 @@ def get_sobol_importances(
             Y=np.ndarray(is_inside.shape, buffer=is_inside, dtype=np.int8),
             method="sobol",
             num_resamples=1,
-        )['S1']
+        )["S1"]
         if any([r.count(1) > 1 for r in refinements]):
             Si = sobol.analyze(problem, is_inside, num_resamples=1)
             # if Si["S2"][1, 2] == np.nan:
@@ -217,10 +217,61 @@ def tree_voxel_thingi(
         and not priority_queue.empty()
         and not too_fine
     ):
-        _, _, refinement, next_refinement_index = priority_queue.get()
-        discretization, index_mapping = dyada.refinement.apply_single_refinement(
-            discretization, next_refinement_index, refinement
+        first_priority, second_priority, refinement, next_refinement_index = (
+            priority_queue.get()
         )
+        num_refined_dimensions = refinement.count(1)
+        first_priority_to_compare = 0.55 ** (1./(2**num_refined_dimensions)) * 2.0 ** (-num_refined_dimensions) * first_priority
+        second_priority_to_compare = 0.55 ** (1./(2**num_refined_dimensions)) * 2.0 ** (-num_refined_dimensions) * second_priority
+        p = dyada.refinement.PlannedAdaptiveRefinement(discretization)
+
+        p.plan_refinement(next_refinement_index, refinement)
+        indices_to_refine: set[int] = {next_refinement_index}
+        num_boxes_added = 2 ** (num_refined_dimensions) - 1
+
+        discretization_length = len(discretization)
+        while (
+            not priority_queue.empty()
+            and (discretization_length + num_boxes_added) < max_num_boxes
+        ):
+            # try to refine more boxes in the same refinement step
+            (
+                first_priority_test,
+                second_priority_test,
+                refinement,
+                next_refinement_index,
+            ) = priority_queue.get()
+            if next_refinement_index in indices_to_refine:
+                # if the next box is already in the planned refinement,
+                # skip it to avoid duplicates
+                continue
+            if (
+                2.0 ** (-refinement.count(1)) * -first_priority_test
+                < -first_priority_to_compare
+                or 2.0 ** (-refinement.count(1)) * -second_priority_test
+                < -second_priority_to_compare
+            ):
+                # if it has a too-low importance compared to the first one
+                # put back into the queue and start applying the refinements
+                priority_queue.put(
+                    (
+                        first_priority_test,
+                        second_priority_test,
+                        refinement,
+                        next_refinement_index,
+                    )
+                )
+                break
+            p.plan_refinement(next_refinement_index, refinement)
+            indices_to_refine.add(next_refinement_index)
+            num_boxes_added += 2 ** (refinement.count(1)) - 1
+
+        new_descriptor, index_mapping = p.apply_refinements(track_mapping="boxes")
+        discretization = dyada.discretization.Discretization(
+            dyada.linearization.MortonOrderLinearization(),
+            new_descriptor,
+        )
+
         # update the priority queue's old entries with the (potentially) changed indices
         new_priority_queue: PriorityQueue = PriorityQueue()
         while not priority_queue.empty():
@@ -237,31 +288,34 @@ def tree_voxel_thingi(
             new_priority_queue.put(
                 (i_neg_main_importance, i_neg_importance, i_refinement, new_index)
             )
-        # calculate new importance for the new patches
-        for i in index_mapping[next_refinement_index]:
-            try:
-                put_box_into_priority_queue(
-                    i,
-                    new_priority_queue,
-                    discretization,
-                    mesh,
-                    importance_function,
-                    skip_function,
-                    allowed_refinements,
-                )
-            except dyada.coordinates.DyadaTooFineError as e:
-                # the next boxes would be too fine, break
-                # (because everything else will have little impact as well)
-                ic(e)
-                too_fine = True
-                break
-            except Exception as e:
-                ic(i)
-                ic(index_mapping[next_refinement_index])
-                ic(len(discretization))
-                ic(new_priority_queue.queue)
-                raise e
+
         priority_queue = new_priority_queue
+
+        # calculate new importance for the new patches
+        for next_refinement_index in indices_to_refine:
+            for i in index_mapping[next_refinement_index]:
+                try:
+                    put_box_into_priority_queue(
+                        i,
+                        priority_queue,
+                        discretization,
+                        mesh,
+                        importance_function,
+                        skip_function,
+                        allowed_refinements,
+                    )
+                except dyada.coordinates.DyadaTooFineError as e:
+                    # the next boxes would be too fine, break
+                    # (because everything else will have little impact as well)
+                    ic(e)
+                    too_fine = True
+                    break
+                except Exception as e:
+                    ic(i)
+                    ic(index_mapping[next_refinement_index])
+                    ic(len(discretization))
+                    ic(priority_queue.queue)
+                    raise e
         if priority_queue.empty():
             ic(len(discretization), max_num_boxes, len(mesh.vertices))
             print("Priority queue is empty, stopping.")
