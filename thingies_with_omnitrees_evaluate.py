@@ -141,9 +141,9 @@ def get_monte_carlo_l1_error(
     else:
         points = np.random.rand(num_samples, num_dimensions)
         is_inside_mesh = check_inside_or_outside_mesh(mesh, points)
-    is_inside_tree = check_inside_or_outside_tree(
-        discretization, binary_discretization_occupancy, points
-    )
+        is_inside_tree = check_inside_or_outside_tree(
+            discretization, binary_discretization_occupancy, points
+        )
     # calculate the L1 error
     return (is_inside_mesh ^ is_inside_tree).mean()
 
@@ -190,11 +190,11 @@ def get_binary_discretization_occupancy(
             )
             # get random points in the interval
             random_points_in_interval = (
-                    random_points_3d * (interval.upper_bound - interval.lower_bound)
+                random_points_3d * (interval.upper_bound - interval.lower_bound)
                 + interval.lower_bound
-                )
+            )
             is_inside = check_inside_or_outside_mesh(mesh, random_points_in_interval)
-    
+
             if np.mean(is_inside) > 0.5:
                 binary_discretization_occupancy[box_index] = True
     return binary_discretization_occupancy
