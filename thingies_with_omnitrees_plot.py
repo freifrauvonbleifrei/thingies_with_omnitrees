@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 + filename_tree_4d
                 + " does not exist, returning"
             )
-        exit(1)
+            exit(1)
     if not os.path.isfile(args.occupancy_file):
         print(args.occupancy_file + " does not exist, returning")
         exit(1)
@@ -175,8 +175,8 @@ if __name__ == "__main__":
         )
         ic(len(time_slices))
 
-        for time_i in range(100):
-            time = time_i * 0.01
+        for time_i in range(64):
+            time = (time_i + 0.5) * (1./ 64.)
             discretization_at_time, binary_discretization_occupancy_at_time = (
                 time_slices[time]
             )

@@ -153,8 +153,8 @@ if __name__ == "__main__":
             raise ValueError(f"Mesh is not watertight")
         # plot the original mesh
         if args.temporal:
-            for rotation in range(100):
-                rotation_angle = rotation * 0.01 * 2 * np.pi
+            for rotation in range(64):
+                rotation_angle = (rotation + 0.5) / 64.0 * 2 * np.pi
                 mesh_copy = special_thingy["mesh"].copy()
                 mesh_copy.apply_transform(
                     trimesh.transformations.rotation_matrix(
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     importance_function = functools.partial(
         get_sobol_importances,
         num_sobol_samples=args.sobol_samples,
-            variance_as_first_criterion=args.two_tier_criterion,
+        variance_as_first_criterion=args.two_tier_criterion,
     )
     skip_function = skip_function_no_importance
 
