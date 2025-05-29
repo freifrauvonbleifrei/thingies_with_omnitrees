@@ -405,8 +405,9 @@ if __name__ == "__main__":
                     ),
                 )
 
-                number_error_samples = 131072
+                number_error_samples = 262144
                 number_occupancy_samples = args.sobol_samples * 8
+
                 partial_dict = {
                     "thingi_file_id": thingi["file_id"],
                     "tree": tree_name,

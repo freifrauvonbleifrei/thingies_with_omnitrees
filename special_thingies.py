@@ -273,8 +273,12 @@ if __name__ == "__main__":
                 discretization.descriptor.to_file(filename_tree)
 
                 # and evaluate the error immediately
-                number_error_samples = 131072
+                number_error_samples = 262144
                 number_occupancy_samples = args.sobol_samples * 8
+                if num_dimensions == 4:
+                    number_error_samples = 16777216
+                    number_occupancy_samples = args.sobol_samples * 16
+
                 binary_discretization_occupancy = get_binary_discretization_occupancy(
                     discretization, mesh, number_occupancy_samples
                 )
