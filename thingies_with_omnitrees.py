@@ -7,7 +7,7 @@ from icecream import ic
 import os
 from queue import PriorityQueue
 from SALib.sample import sobol, saltelli
-from SALib.analyze import sobol
+from SALib.analyze import sobol, delta
 import thingi10k
 import trimesh
 
@@ -76,20 +76,29 @@ def get_sobol_importances(
         # if only ones (=> octree), return the scaling factor
         return first_criterion, [scaling_factor]
     else:
-        Si = sobol.analyze(problem, is_inside)
-        # ic(Si)
-        if Si["S2"][1, 2] == np.nan:
-            return first_criterion, [np.nan] * len(refinements)
+        # getting negative values for S1 indices with normal Sobol -> use delta
+        # cf. https://github.com/SALib/SALib/issues/109
+        S_one = delta.analyze(
+            problem,
+            X=sampling_points_unit_cube,
+            Y=np.ndarray(is_inside.shape, buffer=is_inside, dtype=np.int8),
+            method="sobol",
+            num_resamples=1,
+        )['S1']
+        if any([r.count(1) > 1 for r in refinements]):
+            Si = sobol.analyze(problem, is_inside, num_resamples=1)
+            # if Si["S2"][1, 2] == np.nan:
+            #     return first_criterion, [np.nan] * len(refinements)
 
         importances = []
         for refinement in refinements:
             refinement = ba.bitarray(refinement)
             if refinement == ba.bitarray("111"):
-                importance = 1.0 - Si["S1"].sum() - np.nansum(Si["S2"])
+                importance = 1.0 - S_one.sum() - np.nansum(Si["S2"])
             elif refinement.count(1) == 1:
                 # 1d sensitivity indices -> only
                 index_of_1 = refinement.index(1)
-                importance = Si["S1"][index_of_1]
+                importance = S_one[index_of_1]
             elif refinement.count(1) == 2:
                 # 2d sensitivity indices
                 index_of_1 = refinement.index(1)
