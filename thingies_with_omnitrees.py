@@ -281,6 +281,12 @@ if __name__ == "__main__":
         help="which slice of the data set this should work on, zero-indexed",
         default="0/2048",
     )
+    parser.add_argument(
+        "--two-tier-criterion",
+        action="store_true",
+        help="use a two-tier criterion for the importance, first the variance, then the Sobol indices",
+        default=False,
+    )
     args = parser.parse_args()
 
     parsed_number_tree_boxes = args.number_tree_boxes.split("-")
@@ -343,7 +349,7 @@ if __name__ == "__main__":
         importance_function = functools.partial(
             get_sobol_importances,
             num_sobol_samples=args.sobol_samples,
-            variance_as_first_criterion=False,
+            variance_as_first_criterion=args.two_tier_criterion,
         )
         skip_function = skip_function_no_importance
 

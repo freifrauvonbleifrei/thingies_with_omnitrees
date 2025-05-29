@@ -57,6 +57,12 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
+        "--two-tier-criterion",
+        action="store_true",
+        help="use a two-tier criterion for the importance, first the variance, then the Sobol indices",
+        default=False,
+    )
+    parser.add_argument(
         "--temporal",
         action="store_true",
         help="if present, use the temporal 4d version of the thingies",
@@ -169,7 +175,7 @@ if __name__ == "__main__":
     importance_function = functools.partial(
         get_sobol_importances,
         num_sobol_samples=args.sobol_samples,
-        variance_as_first_criterion=False,
+            variance_as_first_criterion=args.two_tier_criterion,
     )
     skip_function = skip_function_no_importance
 
