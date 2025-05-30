@@ -5,8 +5,8 @@ import subprocess
 # cf. https://stackoverflow.com/a/26783779/7272382
 
 min_tree_boxes = 16
-max_tree_boxes = 2048
-num_sobol_samples = 2048
+max_tree_boxes = 8192
+num_sobol_samples = 512
 
 def generate(slice_string):
     ic(slice_string)
