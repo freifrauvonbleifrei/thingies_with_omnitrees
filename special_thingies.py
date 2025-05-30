@@ -189,14 +189,6 @@ if __name__ == "__main__":
         for permutation in multiset_permutations([1, 0, 0, 0], num_dimensions)
     }
     allowed_refinements_omnitree_1.discard(ba.frozenbitarray("0" * num_dimensions))
-    allowed_refinements_omnitree_2 = allowed_refinements_omnitree_1 | {
-        ba.frozenbitarray(permutation)
-        for permutation in multiset_permutations([1, 1, 0, 0], num_dimensions)
-    }
-    allowed_refinements_omnitree_3 = allowed_refinements_omnitree_2 | {
-        ba.frozenbitarray(permutation)
-        for permutation in multiset_permutations([1, 1, 1, 0], num_dimensions)
-    }
 
     error_file = ErrorL1File(args.sobol_samples)
 
@@ -216,10 +208,6 @@ if __name__ == "__main__":
         discretization_omnitree_1, queue_omnitree_1 = get_initial_tree_and_queue(
             mesh, importance_function, list(allowed_refinements_omnitree_1)
         )
-        discretization_omnitree_2, queue_omnitree_2 = get_initial_tree_and_queue(
-            mesh, importance_function, list(allowed_refinements_omnitree_2)
-        )
-
         tree_tuples = [
             (
                 list(allowed_refinements_octree),
@@ -233,25 +221,7 @@ if __name__ == "__main__":
                 queue_omnitree_1,
                 "omnitree_1",
             ),
-            (
-                list(allowed_refinements_omnitree_2),
-                discretization_omnitree_2,
-                queue_omnitree_2,
-                "omnitree_2",
-            ),
         ]
-        if not args.temporal:
-            discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
-                mesh, importance_function, list(allowed_refinements_omnitree_3)
-            )
-            tree_tuples.append(
-                (
-                    list(allowed_refinements_omnitree_3),
-                    discretization_omnitree_3,
-                    queue_omnitree_3,
-                    "omnitree_3",
-                )
-            )
         if args.tree_index is not None:
             # if tree_index is given, use only that one
             tree_tuples = [tree_tuples[args.tree_index]]

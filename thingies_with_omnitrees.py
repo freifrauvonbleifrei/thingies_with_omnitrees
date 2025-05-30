@@ -422,35 +422,29 @@ if __name__ == "__main__":
             ba.bitarray("010"),
             ba.bitarray("001"),
         ]
-        allowed_refinements_omnitree_2 = [
-            ba.bitarray("100"),
-            ba.bitarray("010"),
-            ba.bitarray("001"),
-            ba.bitarray("110"),
-            ba.bitarray("011"),
-            ba.bitarray("101"),
-        ]
-        allowed_refinements_omnitree_3 = [
-            ba.bitarray("100"),
-            ba.bitarray("010"),
-            ba.bitarray("001"),
-            ba.bitarray("110"),
-            ba.bitarray("011"),
-            ba.bitarray("101"),
-            ba.bitarray("111"),
-        ]
+        # allowed_refinements_omnitree_2 = [
+        #     ba.bitarray("100"),
+        #     ba.bitarray("010"),
+        #     ba.bitarray("001"),
+        #     ba.bitarray("110"),
+        #     ba.bitarray("011"),
+        #     ba.bitarray("101"),
+        # ]
+        # allowed_refinements_omnitree_3 = [
+        #     ba.bitarray("100"),
+        #     ba.bitarray("010"),
+        #     ba.bitarray("001"),
+        #     ba.bitarray("110"),
+        #     ba.bitarray("011"),
+        #     ba.bitarray("101"),
+        #     ba.bitarray("111"),
+        # ]
 
         discretization_octree, queue_octree = get_initial_tree_and_queue(
             mesh, importance_function, allowed_refinements_octree
         )
         discretization_omnitree_1, queue_omnitree_1 = get_initial_tree_and_queue(
             mesh, importance_function, allowed_refinements_omnitree_1
-        )
-        discretization_omnitree_2, queue_omnitree_2 = get_initial_tree_and_queue(
-            mesh, importance_function, allowed_refinements_omnitree_2
-        )
-        discretization_omnitree_3, queue_omnitree_3 = get_initial_tree_and_queue(
-            mesh, importance_function, allowed_refinements_omnitree_3
         )
 
         tree_tuples = [
@@ -460,18 +454,6 @@ if __name__ == "__main__":
                 discretization_omnitree_1,
                 queue_omnitree_1,
                 "omnitree_1",
-            ),
-            (
-                allowed_refinements_omnitree_2,
-                discretization_omnitree_2,
-                queue_omnitree_2,
-                "omnitree_2",
-            ),
-            (
-                allowed_refinements_omnitree_3,
-                discretization_omnitree_3,
-                queue_omnitree_3,
-                "omnitree_3",
             ),
         ]
 
