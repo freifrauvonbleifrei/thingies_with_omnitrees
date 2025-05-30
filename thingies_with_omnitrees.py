@@ -221,8 +221,14 @@ def tree_voxel_thingi(
             priority_queue.get()
         )
         num_refined_dimensions = refinement.count(1)
-        first_priority_to_compare = 0.55 ** (1./(2**num_refined_dimensions)) * 2.0 ** (-num_refined_dimensions) * first_priority
-        second_priority_to_compare = 0.55 ** (1./(2**num_refined_dimensions)) * 2.0 ** (-num_refined_dimensions) * second_priority
+        safety_factor = 1.2
+        worst_case_ratio_children = 1.0 / (2 - 2**num_refined_dimensions)
+        first_priority_to_compare = (
+            safety_factor * worst_case_ratio_children * first_priority
+        )
+        second_priority_to_compare = (
+            safety_factor * worst_case_ratio_children * second_priority
+        )
         p = dyada.refinement.PlannedAdaptiveRefinement(discretization)
 
         p.plan_refinement(next_refinement_index, refinement)
