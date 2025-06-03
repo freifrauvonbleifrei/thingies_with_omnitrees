@@ -14,7 +14,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--img_extension",
         type=str,
-        help="input image extension,xeither 'png' or 'svg'",
+        help="input image extension, either 'png' or 'svg'",
         choices=["png", "svg"],
         default="svg",
     )
@@ -61,16 +61,14 @@ if __name__ == "__main__":
 
         for num_boxes, paths in nums_boxes.items():
             ic(paths)
-            if len(paths) != 4:
+            if len(paths) != 2:
                 print(
-                    f"Warning: expected 4 SVG files for id {thingi_id}, {num_boxes} boxes, got {len(paths)}"
+                    f"Warning: expected 2 files for id {thingi_id}, {num_boxes} boxes, got {len(paths)}"
                 )
                 continue
             paths = [
                 [f for f in paths if "_octree_" in f][0],
                 [f for f in paths if "_omnitree_1_" in f][0],
-                [f for f in paths if "_omnitree_2_" in f][0],
-                [f for f in paths if "_omnitree_3_" in f][0],
             ]
             if args.img_extension == "svg":
                 img_original = SVG(original[0])
@@ -94,10 +92,6 @@ if __name__ == "__main__":
                     img_octree = ImageElement(octree_img_file, width, height)
                 with open(paths[1], "rb") as omni_1_img_file:
                     img_omnitree_1 = ImageElement(omni_1_img_file, width, height)
-                with open(paths[2], "rb") as omni_2_img_file:
-                    img_omnitree_2 = ImageElement(omni_2_img_file, width, height)
-                with open(paths[3], "rb") as omni_3_img_file:
-                    img_omnitree_3 = ImageElement(omni_3_img_file, width, height)
                 original_width, original_height = width, height
                 octree_width, octree_height = width, height
 
@@ -105,20 +99,18 @@ if __name__ == "__main__":
             ic(octree_width, octree_height)
 
             # move original down a bit
-            original_down_shift = 0.25 * octree_height
+            original_down_shift = 0. * octree_height
             img_original.moveto(0, original_down_shift)
 
             # move all except original right and!
             right_offset = original_width * 0.9
             more_right_offset = right_offset + octree_width
             # octree and omnitree_1 down, omnitree_1 and omnitree_3 right
-            img_octree.moveto(right_offset, octree_height)
-            img_omnitree_1.moveto(more_right_offset, octree_height)
-            img_omnitree_2.moveto(right_offset, 0)
-            img_omnitree_3.moveto(more_right_offset, 0)
+            img_octree.moveto(right_offset, 0)
+            img_omnitree_1.moveto(more_right_offset, 0)
 
             combined_width = original_width + 2 * octree_width
-            combined_height = 2 * octree_height
+            combined_height = 1 * octree_height
 
             background = fromstring(
                 f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -134,7 +126,7 @@ if __name__ == "__main__":
             ).getroot()
 
             tree_label_style_dict = {
-                "size": 18,
+                "size": 30,
                 "weight": "bold",
                 "color": "black",
             }
@@ -148,7 +140,7 @@ if __name__ == "__main__":
                 Text(
                     f"Thingi {thingi_id}",
                     original_width * 0.25,
-                    original_down_shift + original_height,
+                    original_down_shift + 0.8*original_height,
                     size=36,
                     weight="bold",
                     color="black",
@@ -157,28 +149,14 @@ if __name__ == "__main__":
                 Text(
                     "Octree",
                     right_offset + octree_width * 0.25,
-                    octree_height * 2 - label_shift_up,
+                    octree_height * 1 - label_shift_up,
                     **tree_label_style_dict,
                 ),
                 img_omnitree_1,
                 Text(
-                    "Omnitree 1",
+                    "Omnitree",
                     more_right_offset + octree_width * 0.25,
-                    octree_height * 2 - label_shift_up,
-                    **tree_label_style_dict,
-                ),
-                img_omnitree_2,
-                Text(
-                    "Omnitree 2",
-                    right_offset + octree_width * 0.25,
-                    octree_height - label_shift_up,
-                    **tree_label_style_dict,
-                ),
-                img_omnitree_3,
-                Text(
-                    "Omnitree 3",
-                    more_right_offset + octree_width * 0.25,
-                    octree_height - label_shift_up,
+                    octree_height * 1 - label_shift_up,
                     **tree_label_style_dict,
                 ),
             )
@@ -207,7 +185,11 @@ if __name__ == "__main__":
             )
         )
         ic(input_file_arg_list)
-
+        if len(input_file_arg_list) == 0:
+            print(
+                f"Warning: no images found for thingi {thingi_id}, skipping gif creation"
+            )
+            continue
         # create gif
         subprocess.run(
             ["convert"]
