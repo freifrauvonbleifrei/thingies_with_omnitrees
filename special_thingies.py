@@ -132,6 +132,8 @@ if __name__ == "__main__":
         thingi10k.init()
         # use special thingies from thingi10k
         # 53750: Hilbert cube
+        # 96453: Car -> not watertight
+        # 99905: Gear
         # 100349: kitty
         # 187279: cube
         for id in [53750, 100349, 187279, 99905]:
@@ -150,7 +152,7 @@ if __name__ == "__main__":
 
     for special_thingy in special_thingies:
         if not special_thingy["mesh"].is_watertight:
-            raise ValueError(f"Mesh is not watertight")
+            raise ValueError(f"Mesh {special_thingy['fake_file_id']} is not watertight")
         # plot the original mesh
         if args.temporal:
             for rotation in range(64):

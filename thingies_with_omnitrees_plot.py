@@ -173,7 +173,7 @@ if __name__ == "__main__":
         time_slices = get_all_time_slices(
             discretization, binary_discretization_occupancy
         )
-        ic(len(time_slices))
+        ic(len(time_slices), list(time_slices.keys()))
 
         for time_i in range(64):
             time = (time_i + 0.5) * (1./ 64.)
