@@ -18,6 +18,11 @@ if __name__ == "__main__":
         choices=["png", "svg"],
         default="svg",
     )
+    parser.add_argument(
+        "--temporal",
+        action="store_true",
+        help="if present, use the temporal 4d version of the thingies",
+    )
     args = parser.parse_args()
 
     # find all svg files in the current directory and group them by numerical prefix
@@ -26,7 +31,7 @@ if __name__ == "__main__":
         for f in os.listdir(".")
         if os.path.isfile(f) and f.endswith(args.img_extension)
     ]
-    ic(input_paths)
+    ic(sorted(input_paths))
     img_files: dict[str, list[str]] = {}
     for path in input_paths:
         prefix = path.split("_")[0]
@@ -42,40 +47,108 @@ if __name__ == "__main__":
     for thingi_id, img_file_list in img_files.items():
         thingi_img_files = []
         # extract "_orginal." path
-        original = [f for f in img_file_list if "_original." + args.img_extension in f]
-        assert ( #TODO
-            len(original) == 1
-        ), f"expected 1 '_original.{args.img_extension}', got {len(original)}"
-        # remove it from the list
-        img_file_list.remove(original[0])
+        original = [f for f in img_file_list if "_original" in f]
+        if args.temporal:
+            assert (
+                len(original) == 64
+            ), f"expected 64 '_original.{args.img_extension}', got {len(original)}"
+        else:
+            assert (
+                len(original) == 1
+            ), f"expected 1 '_original.{args.img_extension}', got {len(original)}"
+            # remove from the list
+            for o in original:
+                img_file_list.remove(o)
 
-        # example filename: 100349_omnitree_3_64_s256_eval.svg
-        nums_boxes: dict[int, list[str]] = {}
-        for path in img_file_list:
-            num_boxes = int(path.split("_")[-3])
-            if num_boxes not in nums_boxes:
-                nums_boxes[num_boxes] = []
-            nums_boxes[num_boxes].append(path)
-        # sort nums_boxes by key
-        nums_boxes = dict(sorted(nums_boxes.items()))
+        if args.temporal:
+            common_allowed_boxes = 65536
+            filename_temporal_skeleton_original = "%d_original_t%03d.png"
+            filename_temporal_skeleton_octree = "%d_octree_%d_s512_eval_t%03d.png"
+            filename_temporal_skeleton_omnitree = "%d_omnitree_1_%d_s512_eval_t%03d.png"
+            common_boxes_found = False
+            while common_allowed_boxes > 4 and not common_boxes_found:
+                common_boxes_found = True
+                timeslices: dict[int, list[str]] = {}
+                for time in range(64):
+                    if time not in timeslices:
+                        timeslices[time] = []
+                    path_original = filename_temporal_skeleton_original % (
+                        int(thingi_id),
+                        time,
+                    )
+                    path_octree = filename_temporal_skeleton_octree % (
+                        int(thingi_id),
+                        common_allowed_boxes,
+                        time,
+                    )
+                    path_omnitree = filename_temporal_skeleton_omnitree % (
+                        int(thingi_id),
+                        common_allowed_boxes,
+                        time,
+                    )
+                    if (
+                        not os.path.isfile(path_octree)
+                        or not os.path.isfile(path_omnitree)
+                        or not os.path.isfile(path_original)
+                    ):
+                        # try again at smaller resolution
+                        common_allowed_boxes //= 2
+                        common_boxes_found = False
+                        break
+                    else:
+                        timeslices[time].append(path_original)
+                        timeslices[time].append(path_octree)
+                        timeslices[time].append(path_omnitree)
+            ic(common_allowed_boxes, path_octree)
+            assert common_allowed_boxes > 4, (
+                "no common images found for original and "
+                "omnitree and octree for thingi_id %d" % int(thingi_id)
+            )
+            # sort timeslices by key
+            timeslices = dict(sorted(timeslices.items()))
+            iterable_for_gif = timeslices
 
-        for num_boxes, paths in nums_boxes.items():
+        else:
+            # example filename: 100349_omnitree_3_64_s256_eval.svg
+            nums_boxes: dict[int, list[str]] = {}
+            for path in img_file_list:
+                ic(path.split("_"))
+                num_boxes = int(path.split("_")[-3])
+                if num_boxes not in nums_boxes:
+                    nums_boxes[num_boxes] = []
+                nums_boxes[num_boxes].append(path)
+            # sort nums_boxes by key
+            nums_boxes = dict(sorted(nums_boxes.items()))
+            iterable_for_gif = nums_boxes
+
+        for i_index, paths in iterable_for_gif.items():
             ic(paths)
-            if len(paths) != 2:
+            if not (len(paths) == 2 and not args.temporal) and not (
+                len(paths) == 3 and args.temporal
+            ):
                 print(
-                    f"Warning: expected 2 files for id {thingi_id}, {num_boxes} boxes, got {len(paths)}"
+                    f"Warning: expected 2 files for id {thingi_id}, {i_index} "
+                    "boxes or time, got {len(paths)}"
                 )
                 continue
-            paths = [
-                [f for f in paths if "_octree_" in f][0],
-                [f for f in paths if "_omnitree_1_" in f][0],
-            ]
+            if args.temporal:
+                paths = [
+                    [f for f in paths if "_octree_" in f][0],
+                    [f for f in paths if "_omnitree_1_" in f][0],
+                    [f for f in paths if "original" in f][0],
+                ]
+            else:
+                paths = [
+                    [f for f in paths if "_octree_" in f][0],
+                    [f for f in paths if "_omnitree_1_" in f][0],
+                ]
             if args.img_extension == "svg":
-                img_original = SVG(original[0])
+                if args.temporal:
+                    img_original = SVG(paths[2])
+                else:
+                    img_original = SVG(original[0])
                 img_octree = SVG(paths[0])
                 img_omnitree_1 = SVG(paths[1])
-                img_omnitree_2 = SVG(paths[2])
-                img_omnitree_3 = SVG(paths[3])
 
                 original_width, original_height = (
                     img_original.width,
@@ -86,7 +159,8 @@ if __name__ == "__main__":
                 width = 1024
                 height = 1024
                 # create a new SVG figure and embed the PNG images
-                with open(original[0], "rb") as original_img_file:
+                original_path = paths[2] if args.temporal else original[0]
+                with open(original_path, "rb") as original_img_file:
                     img_original = ImageElement(original_img_file, width, height)
                 with open(paths[0], "rb") as octree_img_file:
                     img_octree = ImageElement(octree_img_file, width, height)
@@ -99,7 +173,7 @@ if __name__ == "__main__":
             ic(octree_width, octree_height)
 
             # move original down a bit
-            original_down_shift = 0. * octree_height
+            original_down_shift = 0.0 * octree_height
             img_original.moveto(0, original_down_shift)
 
             # move all except original right and!
@@ -140,7 +214,7 @@ if __name__ == "__main__":
                 Text(
                     f"Thingi {thingi_id}",
                     original_width * 0.25,
-                    original_down_shift + 0.8*original_height,
+                    original_down_shift + 0.8 * original_height,
                     size=36,
                     weight="bold",
                     color="black",
@@ -162,7 +236,7 @@ if __name__ == "__main__":
             )
             # Todo consider putting the errors here as well
             # save file
-            filename = f"{thingi_id}_{num_boxes}_combined.svg"
+            filename = f"{thingi_id}_{i_index}_combined.svg"
             combined.save(filename)
 
             thingi_img_files.append(filename)
@@ -191,10 +265,15 @@ if __name__ == "__main__":
             )
             continue
         # create gif
+        combined_gif_filename = f"{thingi_id}_{args.img_extension}_combined.gif"
+        if args.temporal:
+            combined_gif_filename = (
+                f"{thingi_id}_{common_allowed_boxes}_{args.img_extension}_combined.gif"
+            )
         subprocess.run(
             ["convert"]
             + input_file_arg_list
-            + [f"{thingi_id}_{args.img_extension}_combined.gif"]
+            + [combined_gif_filename]
         )
 
         # remove the png files
