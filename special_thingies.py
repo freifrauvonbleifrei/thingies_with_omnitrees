@@ -134,7 +134,7 @@ if __name__ == "__main__":
         # 53750: Hilbert cube
         # 100349: kitty
         # 187279: cube
-        for id in [53750, 100349, 187279]:
+        for id in [53750, 100349, 187279, 99905]:
             thingi = thingi10k.dataset(file_id=id)[0]
             mesh_data = np.load(thingi["file_path"])
             mesh_vertices = mesh_data["vertices"]
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                 mesh_copy = mesh_to_unit_cube(mesh_copy)
                 plot_mesh_with_opengl(
                     mesh_copy,
-                    filename=f"{special_thingy["fake_file_id"]}_{rotation:03d}_original",
+                    filename=f"{special_thingy["fake_file_id"]}_original_t{rotation:03d}",
                 )
         else:
             plot_mesh_with_opengl(
