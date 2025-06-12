@@ -277,6 +277,14 @@ def plot_mesh_with_opengl(mesh: trimesh.Trimesh, filename):
     dyada.drawing.gl_save_file(filename)
 
 
+def shannon_information(probability_of_ones: float) -> float:
+    if probability_of_ones == 0 or probability_of_ones == 1:
+        return 0
+    return -probability_of_ones * np.log2(probability_of_ones) - (
+        1 - probability_of_ones
+    ) * np.log2(1 - probability_of_ones)
+
+
 def get_shannon_information(
     binary_array_or_bitarray,
 ) -> float:
@@ -288,12 +296,8 @@ def get_shannon_information(
     # calculate the Shannon information
     length = len(binary_array_or_bitarray)
     num_ones = np.sum(binary_array_or_bitarray)
-    num_zeros = length - num_ones
     p_ones = num_ones / length
-    p_zeros = num_zeros / length
-    if p_ones == 0 or p_zeros == 0:
-        return 0
-    return -p_ones * np.log2(p_ones) - p_zeros * np.log2(p_zeros)
+    return shannon_information(p_ones)
 
 
 if __name__ == "__main__":
