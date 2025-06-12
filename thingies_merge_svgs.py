@@ -44,6 +44,17 @@ if __name__ == "__main__":
             img_files[prefix] = []
         img_files[prefix].append(path)
 
+    thingi_names = {
+        "0": "Tetrahedron",
+        "1": "Sphere",
+        "2": "Rod",
+        "53750": "Hilbert Cube",
+        "96453": "Car",
+        "99905": "Gear",
+        "100349": "Cat",
+        "187279": "Cube",
+    }
+
     for thingi_id, img_file_list in img_files.items():
         thingi_img_files = []
         # extract "_orginal." path
@@ -100,10 +111,12 @@ if __name__ == "__main__":
                         timeslices[time].append(path_octree)
                         timeslices[time].append(path_omnitree)
             ic(common_allowed_boxes, path_octree)
-            assert common_allowed_boxes > 4, (
-                "no common images found for original and "
-                "omnitree and octree for thingi_id %d" % int(thingi_id)
-            )
+            if common_allowed_boxes < 8:
+                print(
+                    "no common images found for original and "
+                    "omnitree and octree for thingi_id %d" % int(thingi_id)
+                )
+                continue
             # sort timeslices by key
             timeslices = dict(sorted(timeslices.items()))
             iterable_for_gif = timeslices
@@ -206,13 +219,20 @@ if __name__ == "__main__":
             }
             label_shift_up = 0.15 * octree_height
 
+            thingi_label = f"Thingi {thingi_id}"
+            if thingi_id in thingi_names:
+                if int(thingi_id) < 20:
+                    thingi_label = f"{thingi_names[thingi_id]}"
+                else:
+                    thingi_label = f"{thingi_names[thingi_id]} \n(Thingi {thingi_id})"
+
             combined = Figure(
                 combined_width,
                 combined_height,
                 background,
                 img_original,
                 Text(
-                    f"Thingi {thingi_id}",
+                    thingi_label,
                     original_width * 0.25,
                     original_down_shift + 0.8 * original_height,
                     size=36,
@@ -270,11 +290,7 @@ if __name__ == "__main__":
             combined_gif_filename = (
                 f"{thingi_id}_{common_allowed_boxes}_{args.img_extension}_combined.gif"
             )
-        subprocess.run(
-            ["convert"]
-            + input_file_arg_list
-            + [combined_gif_filename]
-        )
+        subprocess.run(["convert"] + input_file_arg_list + [combined_gif_filename])
 
         # remove the png files
         for file in thingi_svg_files:
