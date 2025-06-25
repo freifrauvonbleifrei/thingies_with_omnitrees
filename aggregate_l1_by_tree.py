@@ -3,17 +3,32 @@ import argparse as arg
 import pandas as pd
 from icecream import ic
 from num2words import num2words
+import numpy as np
 import math
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from thingies_with_omnitrees_evaluate import ErrorL1File
+from thingies_with_omnitrees_evaluate import ErrorL1File, shannon_information
 
 
 def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
     error_file = ErrorL1File(num_sobol_samples)
 
     df = pd.read_csv(error_file.l1fileName)
+    num_dimensions = 3
+    df["occupancy_ratio"] = df["num_boxes_occupied"] / df["num_boxes"]
+    df["occupancy_ratio_diff_half"] = abs(df["occupancy_ratio"] - 0.5)
+    df["tree_ones_ratio"] = df["tree_number_of_1s"] / (
+        num_dimensions * df["num_tree_nodes"]
+    )
+    df["tree_ones_ratio_diff_half"] = abs(df["tree_ones_ratio"] - 0.5)
+    df["shannon_information_function"] = df["occupancy_ratio"].apply(
+        shannon_information
+    )
+    df["shannon_information_tree"] = df["tree_ones_ratio"].apply(shannon_information)
+    label_length = df["tree"].apply(lambda n: 1 if n == "octree" else num_dimensions)
+    df["total_storage_size"] = label_length * df["num_tree_nodes"] + df["num_boxes"]
+
     tree_names = ["octree", "omnitree_1"]
     # create pyplot figure to fill with scatterplot
     fig, ax = plt.subplots()
@@ -46,27 +61,16 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
                 f"Warning: {tree_name} has only {len(values_per_thingi_file_id)} different thingi_file_ids, expected 4166"
             )
         if plot:
-            df_tree["occupancy_ratio"] = (
-                df_tree["num_boxes_occupied"] / df_tree["num_boxes"]
-            )
-            df_tree["occupancy_ratio_diff_half"] = abs(df_tree["occupancy_ratio"] - 0.5)
-            df_tree["tree_ones_ratio"] = df_tree["tree_number_of_1s"] / (
-                3 * df_tree["num_tree_nodes"]
-            )
-            df_tree["tree_ones_ratio_diff_half"] = abs(df_tree["tree_ones_ratio"] - 0.5)
-            
-            label_length = 1 if tree_name == "octree" else 3
-            df_tree["total_storage_size"] = (
-                label_length * df_tree["num_tree_nodes"] + df_tree["num_boxes"]
-            )
 
-            for interesting_allowed_tree_boxes in df_tree["allowed_tree_boxes"].unique():
+            for interesting_allowed_tree_boxes in df_tree[
+                "allowed_tree_boxes"
+            ].unique():
                 # select only a subset of allowed_tree_boxes
                 df_scatter_tree = df_tree[
                     df_tree["allowed_tree_boxes"].isin([interesting_allowed_tree_boxes])
                 ]
 
-                x = "total_storage_size"
+                x = "occupancy_ratio_diff_half"
                 y = "l1error"
                 ax.set_xlabel(x)
                 ax.set_ylabel("L1 error")
@@ -85,11 +89,15 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
                 # Compute medians
                 median_x = df_scatter_tree[x].median()
                 median_y = df_scatter_tree[y].median()
+                mean_x = df_scatter_tree[x].mean()
+                mean_y = df_scatter_tree[y].mean()
                 # Mark the median
                 plt.scatter(
                     median_x,
                     median_y,
-                    color=colors[tree_name],
+                    # mean_x,
+                    # mean_y,
+                    color="red",
                     marker="X",
                     s=math.sqrt(interesting_allowed_tree_boxes) / 3,
                 )
@@ -113,6 +121,17 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
             num2words(i).replace(" ", "").replace("-", "").replace(",", "")
             for i in df_tree_grouped.columns
         ]
+        df_tree_grouped_storage = (
+            df_tree.groupby("allowed_tree_boxes")["total_storage_size"]
+            .apply(list)
+            .apply(pd.Series)
+        )
+        df_tree_grouped_storage = df_tree_grouped_storage.transpose()
+        df_tree_grouped_storage.columns = [
+            num2words(i).replace(" ", "").replace("-", "").replace(",", "") + "_storage"
+            for i in df_tree_grouped_storage.columns
+        ]
+        df_tree_grouped = pd.concat([df_tree_grouped, df_tree_grouped_storage], axis=1)
         df_tree_grouped.to_csv(
             f"l1_errors_{tree_name}_s{num_sobol_samples}.csv", index=False, na_rep="nan"
         )
@@ -144,6 +163,48 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
             "min",
             "max",
         ]
+        df_tree_info_medians = (
+            df_tree.groupby("allowed_tree_boxes")["occupancy_ratio_diff_half"]
+            .agg(
+                [
+                    "mean",
+                    "std",
+                    "median",
+                ]
+            )
+            .reset_index()
+        )
+        df_tree_info_medians.columns = [
+            "allowed_tree_boxes",
+            "mean_occupancy_ratio_diff_half",
+            "std_occupancy_ratio_diff_half",
+            "median_occupancy_ratio_diff_half",
+        ]
+        # drop the first column
+        df_tree_info_medians = df_tree_info_medians.drop(columns=["allowed_tree_boxes"])
+
+        df_tree_storage = (
+            df_tree.groupby("allowed_tree_boxes")["total_storage_size"]
+            .agg(
+                [
+                    "mean",
+                    "std",
+                    "median",
+                ]
+            )
+            .reset_index()
+        )
+        df_tree_storage.columns = [
+            "allowed_tree_boxes",
+            "mean_total_storage_size",
+            "std_total_storage_size",
+            "median_total_storage_size",
+        ]
+        df_tree_storage = df_tree_storage.drop(columns=["allowed_tree_boxes"])
+
+        df_tree_statistics = pd.concat(
+            [df_tree_statistics, df_tree_info_medians, df_tree_storage], axis=1
+        )
         ic(tree_name, df_tree_statistics)
         df_tree_statistics.to_csv(
             f"l1_error_{tree_name}_s{num_sobol_samples}.csv", index=False
@@ -152,9 +213,9 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
         ax.legend()
         plt.show()
 
-    # filter by allowed_tree_boxes == 2048,  group by thingi_file_id
+    # filter by allowed_tree_boxes == 8192,  group by thingi_file_id
     df_grouped = (
-        df[df["allowed_tree_boxes"] == 2048]
+        df[df["allowed_tree_boxes"] == 8192]
         .groupby("thingi_file_id")["l1error"]
         .apply(list)
         .apply(pd.Series)
@@ -171,13 +232,30 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
     ic(
         len(df_octree_perfect), df_octree_perfect
     )  # 56094, 59767, 69058, 187279, 233199, 249519
+    df_octree_better = df_grouped[(df_grouped[0] < df_grouped[1])]
+    ic(len(df_octree_better), df_octree_better)
 
 
-def aggregate_l1_by_tree_and_id(num_sobol_samples):
+def aggregate_l1_by_tree_and_id(num_sobol_samples, plot: bool = False):
     # from multiple subfolders:
     # (head -n 1 folder1/l1_errors_s512.csv && tail -n +2 -q folder*/l1_errors_s512.csv) > l1_errors_s512.csv
     error_file = ErrorL1File(num_sobol_samples)
     df = pd.read_csv(error_file.l1fileName)
+    # drop num_*_samples columns
+    df = df.drop(
+        columns=[
+            "num_sobol_samples",
+            "num_error_samples",
+            "num_occupancy_samples",
+        ]
+    )
+    fig, ax = plt.subplots()
+    ax.set_xlabel("abs(occupancy_ratio - 0.5)")
+    ax.set_ylabel("l1 error")
+    colors = {
+        "octree": "blue",
+        "omnitree_1": "orange",
+    }
     # add a column with the occupancy ratio
     df["occupancy_ratio"] = df["num_boxes_occupied"] / df["num_boxes"]
     # and the number of ones in the descriptor
@@ -190,6 +268,34 @@ def aggregate_l1_by_tree_and_id(num_sobol_samples):
             "occupancy_ratio": ["mean", "min", "max", "median"],
         }
     )
+    if plot:
+        for tree_name in df_grouped.index.levels[0]:
+            for interesting_allowed_tree_boxes in df_grouped.index.levels[2]:
+                # select only a subset of allowed_tree_boxes
+                df_scatter_tree = df[
+                    df["allowed_tree_boxes"].isin([interesting_allowed_tree_boxes])
+                ]
+                df_scatter_tree = df_scatter_tree[df_scatter_tree["tree"] == tree_name]
+                # # filter out the cube too
+                # df_scatter_tree = df_scatter_tree[
+                #     df_scatter_tree["thingi_file_id"] != 187279
+                # ]
+                sns.scatterplot(
+                    x=abs(df_scatter_tree["occupancy_ratio"] - 0.5),
+                    # x=abs(df_scatter_tree["tree_ones_ratio"]),
+                    y=df_scatter_tree["l1error"],
+                    color=colors[tree_name],
+                    ax=ax,
+                    label=tree_name + " " + str(interesting_allowed_tree_boxes),
+                    # set marker size according to allowed_tree_boxes
+                    s=math.sqrt(df_scatter_tree["allowed_tree_boxes"]) / 10,
+                    alpha=0.5,
+                    marker="o",
+                )
+        ax.legend()
+        sns.pairplot(df)
+        plt.show()
+
     # flatten and save to csv
     df_grouped.columns = [
         "_".join(map(str, col)).strip() for col in df_grouped.columns.values
@@ -221,6 +327,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if args.by_id:
-        aggregate_l1_by_tree_and_id(args.sobol_samples)
+        aggregate_l1_by_tree_and_id(args.sobol_samples, plot=args.plot)
     else:
         aggregate_l1_by_tree(args.sobol_samples, plot=args.plot)

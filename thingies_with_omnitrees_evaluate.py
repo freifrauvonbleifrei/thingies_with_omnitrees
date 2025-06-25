@@ -249,6 +249,8 @@ def plot_mesh_with_opengl(mesh: trimesh.Trimesh, filename):
         colors="gray",
         filename=None,
         projection=projection,
+        height=512,
+        width=512,
     )
     gl.glEnable(gl.GL_DEPTH_TEST)
 
@@ -274,7 +276,7 @@ def plot_mesh_with_opengl(mesh: trimesh.Trimesh, filename):
             gl.glVertex3fv(vertices[idx][projection])
     gl.glEnd()
     gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
-    dyada.drawing.gl_save_file(filename)
+    dyada.drawing.gl_save_file(filename, width=512, height=512)
 
 
 def shannon_information(probability_of_ones: float) -> float:

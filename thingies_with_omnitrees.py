@@ -399,6 +399,12 @@ if __name__ == "__main__":
     num_my_thingies = len(subset["file_id"])
     ic(num_my_thingies, subset)
 
+    # total used thingies = 4166
+    # without 10000 restriction = 4954
+    # without closedness = 4166
+    # without self_intersecting = 4166
+    # without solid = 4288
+    # without watertight = 4291
     for thingi in subset:
         print(thingi)
         mesh_data = np.load(thingi["file_path"])
