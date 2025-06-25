@@ -47,7 +47,6 @@ def check_inside_or_outside_mesh_at_time(
     is_inside_at_time = mesh_copy.contains(points)
     # cf. https://github.com/mikedh/trimesh/issues/2410
     mesh_copy = None
-    gc.collect()
     return is_inside_at_time
 
 
