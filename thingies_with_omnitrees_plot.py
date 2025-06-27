@@ -100,6 +100,40 @@ def plot_binary_3d_omnitree_with_opengl(
     dyada.drawing.gl_save_file(filename, width=512, height=512)
 
 
+def export_binary_3d_omnitree_to_obj(
+    discretization: dyada.discretization.Discretization, binary_occupancy, filename
+):
+    level_indices = list(discretization.get_all_boxes_level_indices())
+    coordinates = [
+        dyada.coordinates.get_coordinates_from_level_index(box_li)
+        for box_li in level_indices
+    ]
+    projection = [0, 2, 1]
+    buffer_obj, vertex_offset = dyada.drawing.export_boxes_3d_to_obj(
+        coordinates,
+        projection=projection,
+        wireframe=True,
+        filename=None,
+    )
+
+    # filter coordinates by binary occupancy
+    coordinates = [
+        coordinates[i] for i in range(len(coordinates)) if binary_occupancy[i] == 1
+    ]
+    for coordinate in coordinates:
+        buffer_obj, vertex_offset = dyada.drawing.add_cuboid_to_buffer(
+            buffer_obj,
+            vertex_offset,
+            coordinate,
+            projection=projection,
+            wireframe=False,
+        )
+    dyada.drawing.write_obj_file(
+        buffer_obj,
+        filename,
+    )
+
+
 if __name__ == "__main__":
     parser = arg.ArgumentParser()
     parser.add_argument(
@@ -110,7 +144,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--backend",
         type=str,
-        help="either 'opengl' or 'matplotlib'",
+        help="either 'opengl', or 'matplotlib', or 'obj'",
         default="matplotlib",
     )
     args = parser.parse_args()
@@ -160,6 +194,12 @@ if __name__ == "__main__":
     if filename_tree == filename_tree_3d:
         if args.backend == "opengl":
             plot_binary_3d_omnitree_with_opengl(
+                discretization,
+                binary_discretization_occupancy,
+                filename=filename_img,
+            )
+        elif args.backend == "obj":
+            export_binary_3d_omnitree_to_obj(
                 discretization,
                 binary_discretization_occupancy,
                 filename=filename_img,
