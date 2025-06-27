@@ -67,6 +67,11 @@ if __name__ == "__main__":
         action="store_true",
         help="if present, use the temporal 4d version of the thingies",
     )
+    parser.add_argument(
+        "--plane",
+        action="store_true",
+        help="if present, run only the F25 model, assumes stl file in parent directory",
+    )
     args = parser.parse_args()
 
     parsed_number_tree_boxes = args.number_tree_boxes.split("-")
@@ -83,72 +88,80 @@ if __name__ == "__main__":
 
     special_thingies: list[dict] = []
 
-    # tetrahedron mesh
-    mesh = trimesh.Trimesh(
-        vertices=[[1, 0, 0], [0, 0, 0], [0, 1, 0], [0, 0, 1]],
-        faces=[[0, 1, 2], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
-        process=True,
-    )
+    if args.plane:
+        special_thingies = [
+            {
+                "mesh": trimesh.load_mesh("../f25_no_wheels.stl", file_type="stl"),
+                "fake_file_id": 25,  # F25 model
+            }
+        ]
+    else:
+        # tetrahedron mesh
+        mesh = trimesh.Trimesh(
+            vertices=[[1, 0, 0], [0, 0, 0], [0, 1, 0], [0, 0, 1]],
+            faces=[[0, 1, 2], [0, 1, 3], [1, 2, 3], [2, 0, 3]],
+            process=True,
+        )
 
-    mesh = mesh_to_unit_cube(mesh)
+        mesh = mesh_to_unit_cube(mesh)
 
-    special_thingies.append(
-        {
-            "mesh": mesh,
-            "fake_file_id": 0,
-        }
-    )
+        special_thingies.append(
+            {
+                "mesh": mesh,
+                "fake_file_id": 0,
+            }
+        )
 
-    # icosphere mesh
-    mesh = trimesh.creation.icosphere(subdivisions=4)
-    mesh = mesh_to_unit_cube(mesh)
-    special_thingies.append(
-        {
-            "mesh": mesh,
-            "fake_file_id": 1,
-        }
-    )
+        # icosphere mesh
+        mesh = trimesh.creation.icosphere(subdivisions=4)
+        mesh = mesh_to_unit_cube(mesh)
+        special_thingies.append(
+            {
+                "mesh": mesh,
+                "fake_file_id": 1,
+            }
+        )
 
-    # construct a diagonal rod
-    mesh = trimesh.creation.cylinder(
-        radius=0.05,
-        height=1,
-        transform=trimesh.transformations.rotation_matrix(
-            angle=np.pi / 4,
-            direction=[1, 1, 0],
-            point=[0.5, 0.5, 0.5],
-        ),
-    )
-    mesh = mesh_to_unit_cube(mesh)
-    special_thingies.append(
-        {
-            "mesh": mesh,
-            "fake_file_id": 2,
-        }
-    )
+        # construct a diagonal rod
+        mesh = trimesh.creation.cylinder(
+            radius=0.05,
+            height=1,
+            transform=trimesh.transformations.rotation_matrix(
+                angle=np.pi / 4,
+                direction=[1, 1, 0],
+                point=[0.5, 0.5, 0.5],
+            ),
+        )
+        mesh = mesh_to_unit_cube(mesh)
+        special_thingies.append(
+            {
+                "mesh": mesh,
+                "fake_file_id": 2,
+            }
+        )
 
-    use_thingies = True
-    if use_thingies:
-        thingi10k.init()
-        # use special thingies from thingi10k
-        # 53750: Hilbert cube
-        # 96453: Car -> not watertight
-        # 99905: Gear
-        # 100349: kitty
-        # 187279: cube
-        for id in [53750, 100349, 187279, 99905]:
-            thingi = thingi10k.dataset(file_id=id)[0]
-            mesh_data = np.load(thingi["file_path"])
-            mesh_vertices = mesh_data["vertices"]
-            mesh_faces = mesh_data["facets"]
-            mesh = trimesh.Trimesh(vertices=mesh_vertices, faces=mesh_faces)
-            mesh = mesh_to_unit_cube(mesh)
-            special_thingies.append(
-                {
-                    "mesh": mesh,
-                    "fake_file_id": id,
-                }
-            )
+        use_thingies = True
+        if use_thingies:
+            thingi10k.init()
+            # use special thingies from thingi10k
+            # 53750: Hilbert cube
+            # 96453: Car -> not watertight
+            # 99905: Gear
+            # 100349: kitty
+            # 187279: cube
+            for id in [53750, 100349, 187279, 99905]:
+                thingi = thingi10k.dataset(file_id=id)[0]
+                mesh_data = np.load(thingi["file_path"])
+                mesh_vertices = mesh_data["vertices"]
+                mesh_faces = mesh_data["facets"]
+                mesh = trimesh.Trimesh(vertices=mesh_vertices, faces=mesh_faces)
+                mesh = mesh_to_unit_cube(mesh)
+                special_thingies.append(
+                    {
+                        "mesh": mesh,
+                        "fake_file_id": id,
+                    }
+                )
 
     for special_thingy in special_thingies:
         if not special_thingy["mesh"].is_watertight:
