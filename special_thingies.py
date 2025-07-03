@@ -12,7 +12,10 @@ import trimesh
 
 from thingies_utils import mesh_to_unit_cube
 
-from thingies_with_omnitrees_plot import plot_binary_3d_omnitree_with_pyplot
+from thingies_with_omnitrees_plot import (
+    plot_binary_3d_omnitree_with_pyplot,
+    export_binary_3d_omnitree_to_obj,
+)
 
 from thingies_with_omnitrees import (
     get_initial_tree_and_queue,
@@ -91,7 +94,9 @@ if __name__ == "__main__":
     if args.plane:
         special_thingies = [
             {
-                "mesh": trimesh.load_mesh("../f25_no_wheels.stl", file_type="stl"),
+                "mesh": mesh_to_unit_cube(
+                    trimesh.load_mesh("../f25_no_wheels.stl", file_type="stl")
+                ),
                 "fake_file_id": 25,  # F25 model
             }
         ]
@@ -311,6 +316,9 @@ if __name__ == "__main__":
                         "l1error": monte_carlo_l1_error,
                     }
                 )
+                # export_binary_3d_omnitree_to_obj(
+                #     discretization, binary_discretization_occupancy, filename_tree
+                # )
 
     # TODO plot and merge to svg separately
 
