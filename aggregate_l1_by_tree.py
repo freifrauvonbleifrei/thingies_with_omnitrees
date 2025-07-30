@@ -183,6 +183,25 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
         # drop the first column
         df_tree_info_medians = df_tree_info_medians.drop(columns=["allowed_tree_boxes"])
 
+        df_tree_information = (
+            df_tree.groupby("allowed_tree_boxes")["shannon_information_function"]
+            .agg(
+                [
+                    "mean",
+                    "std",
+                    "median",
+                ]
+            )
+            .reset_index()
+        )
+        df_tree_information.columns = [
+            "allowed_tree_boxes",
+            "mean_shannon_information_function",
+            "std_shannon_information_function",
+            "median_shannon_information_function",
+        ]
+        df_tree_information = df_tree_information.drop(columns=["allowed_tree_boxes"])
+
         df_tree_storage = (
             df_tree.groupby("allowed_tree_boxes")["total_storage_size"]
             .agg(
@@ -203,7 +222,7 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
         df_tree_storage = df_tree_storage.drop(columns=["allowed_tree_boxes"])
 
         df_tree_statistics = pd.concat(
-            [df_tree_statistics, df_tree_info_medians, df_tree_storage], axis=1
+            [df_tree_statistics, df_tree_info_medians, df_tree_information, df_tree_storage], axis=1
         )
         ic(tree_name, df_tree_statistics)
         df_tree_statistics.to_csv(
