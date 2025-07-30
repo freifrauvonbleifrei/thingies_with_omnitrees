@@ -104,13 +104,23 @@ def export_binary_3d_omnitree_to_obj(
     discretization: dyada.discretization.Discretization, binary_occupancy, filename
 ):
     level_indices = list(discretization.get_all_boxes_level_indices())
+    # plot only first wireframe box
+    bb_level_indices = list(
+        [dyada.discretization.get_level_index_from_linear_index(
+            discretization._linearization, discretization.descriptor, 0
+        )]
+    )
     coordinates = [
         dyada.coordinates.get_coordinates_from_level_index(box_li)
         for box_li in level_indices
     ]
+    bb_coordinates = [
+        dyada.coordinates.get_coordinates_from_level_index(box_li)
+        for box_li in bb_level_indices
+    ]
     projection = [0, 2, 1]
     buffer_obj, vertex_offset = dyada.drawing.export_boxes_3d_to_obj(
-        coordinates,
+        bb_coordinates,
         projection=projection,
         wireframe=True,
         filename=None,
@@ -269,8 +279,8 @@ if __name__ == "__main__":
             )
         # save the timeline file
         timeline_filename = filename_img + "_timeline.txt"
-        # with open(timeline_filename, "w") as f:
-        #     f.write(timeline_string)
+        with open(timeline_filename, "w") as f:
+            f.write(timeline_string)
 
         possible_trees = ["octree", "omnitree_1"]
         for tree in possible_trees:
