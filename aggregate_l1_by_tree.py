@@ -61,7 +61,6 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
                 f"Warning: {tree_name} has only {len(values_per_thingi_file_id)} different thingi_file_ids, expected 4166"
             )
         if plot:
-
             for interesting_allowed_tree_boxes in df_tree[
                 "allowed_tree_boxes"
             ].unique():
@@ -222,7 +221,13 @@ def aggregate_l1_by_tree(num_sobol_samples: int, plot: bool = False):
         df_tree_storage = df_tree_storage.drop(columns=["allowed_tree_boxes"])
 
         df_tree_statistics = pd.concat(
-            [df_tree_statistics, df_tree_info_medians, df_tree_information, df_tree_storage], axis=1
+            [
+                df_tree_statistics,
+                df_tree_info_medians,
+                df_tree_information,
+                df_tree_storage,
+            ],
+            axis=1,
         )
         ic(tree_name, df_tree_statistics)
         df_tree_statistics.to_csv(

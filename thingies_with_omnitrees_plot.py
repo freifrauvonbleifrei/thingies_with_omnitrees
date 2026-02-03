@@ -106,9 +106,11 @@ def export_binary_3d_omnitree_to_obj(
     level_indices = list(discretization.get_all_boxes_level_indices())
     # plot only first wireframe box
     bb_level_indices = list(
-        [dyada.discretization.get_level_index_from_linear_index(
-            discretization._linearization, discretization.descriptor, 0
-        )]
+        [
+            dyada.discretization.get_level_index_from_linear_index(
+                discretization._linearization, discretization.descriptor, 0
+            )
+        ]
     )
     coordinates = [
         dyada.coordinates.get_coordinates_from_level_index(box_li)
@@ -178,6 +180,13 @@ if __name__ == "__main__":
         print(args.occupancy_file + " does not exist, returning")
         exit(1)
 
+    filename_img = filename_tree[:-7] + "_eval"
+    if os.path.isfile(filename_img + ".png"):
+        print(
+            f"Warning: {filename_img}.png already exists, skipping this discretization"
+        )
+        exit(0)
+
     discretization = dyada.discretization.Discretization(
         dyada.linearization.MortonOrderLinearization(),
         dyada.discretization.RefinementDescriptor.from_file(filename_tree),
@@ -198,7 +207,6 @@ if __name__ == "__main__":
 
     num_boxes_occupied = np.sum(binary_discretization_occupancy)
     ic(filename_tree[:-7], num_boxes_occupied)
-    filename_img = filename_tree[:-7] + "_eval"
     assert len(discretization) == len(binary_discretization_occupancy)
     ic(len(discretization), len(binary_discretization_occupancy))
     if filename_tree == filename_tree_3d:
@@ -218,7 +226,7 @@ if __name__ == "__main__":
             plot_binary_3d_omnitree_with_pyplot(
                 discretization,
                 binary_discretization_occupancy,
-                azim=220,
+                azim=105,
                 filename=filename_img,
             )
     else:
@@ -269,7 +277,7 @@ if __name__ == "__main__":
                     + f"\n"
                 )
             # add timeline file line containing the index of the image to use
-            timeline_string += f"::{len(slice_image_map)-1} \n"
+            timeline_string += f"::{len(slice_image_map) - 1} \n"
             # at the end of timeline, write all images in one comment again
             timeline_string += (
                 "% \\def\\filelist{{ "

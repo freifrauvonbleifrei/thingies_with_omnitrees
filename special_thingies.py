@@ -60,12 +60,6 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
-        "--two-tier-criterion",
-        action="store_true",
-        help="use a two-tier criterion for the importance, first the variance, then the Sobol indices",
-        default=False,
-    )
-    parser.add_argument(
         "--temporal",
         action="store_true",
         help="if present, use the temporal 4d version of the thingies",
@@ -184,7 +178,7 @@ if __name__ == "__main__":
                 mesh_copy = mesh_to_unit_cube(mesh_copy)
                 plot_mesh_with_opengl(
                     mesh_copy,
-                    filename=f"{special_thingy["fake_file_id"]}_original_t{rotation:03d}",
+                    filename=f"{special_thingy['fake_file_id']}_original_t{rotation:03d}",
                 )
         else:
             plot_mesh_with_opengl(

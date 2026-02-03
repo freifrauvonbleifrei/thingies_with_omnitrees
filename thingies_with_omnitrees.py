@@ -209,7 +209,6 @@ def tree_voxel_thingi(
     skip_function,
     allowed_refinements,
 ) -> tuple[dyada.discretization.Discretization, PriorityQueue]:
-
     too_fine = False
     # grow the tree until the desired number of boxes is reached
     while (
@@ -222,7 +221,7 @@ def tree_voxel_thingi(
         )
         num_refined_dimensions = refinement.count(1)
         safety_factor = 1.2
-        worst_case_ratio_children = 1.0 / (2 - 2** (-num_refined_dimensions))
+        worst_case_ratio_children = 1.0 / (2 - 2 ** (-num_refined_dimensions))
         first_priority_to_compare = (
             safety_factor * worst_case_ratio_children * first_priority
         )
@@ -349,12 +348,6 @@ if __name__ == "__main__":
         type=str,
         help="which slice of the data set this should work on, zero-indexed",
         default="0/2048",
-    )
-    parser.add_argument(
-        "--two-tier-criterion",
-        action="store_true",
-        help="use a two-tier criterion for the importance, first the variance, then the Sobol indices",
-        default=False,
     )
     args = parser.parse_args()
 
