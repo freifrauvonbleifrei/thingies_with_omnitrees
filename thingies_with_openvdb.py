@@ -15,50 +15,48 @@ from thingies_utils import mesh_to_unit_cube
 from thingies_with_omnitrees_evaluate import check_inside_or_outside_mesh
 
 
-def mesh_to_boolgrid(
-    mesh: trimesh.Trimesh, voxel_size: float = 0.004, grid_name: str = "inside"
-) -> vdb.BoolGrid:
-    """
-    Convert a watertight triangle mesh into a BoolGrid where
-    True = inside mesh, False = outside mesh.
-
-    Parameters
-    ----------
-    mesh : trimesh.Trimesh
-        Watertight triangle mesh
-    voxel_size : float
-        Size of a voxel in world units
-    padding : int
-        Number of voxels to pad around mesh bounds
-    grid_name : str
-        Name of the OpenVDB grid
-
-    Returns
-    -------
-    vdb.BoolGrid
-    """
-
+def get_regular_grid_occupancy(
+    mesh: trimesh.Trimesh,
+    voxel_size: float,
+    num_samples: int,
+):
     if not mesh.is_watertight:
         raise ValueError("Mesh must be watertight")
 
-    # Compute mesh bounds
-    bounds_min = (0.0, 0.0, 0.0)
-    bounds_max = (1.0, 1.0, 1.0)
+    random_points_3d = np.random.rand(num_samples, 3)
 
     # Compute grid resolution
     dims = np.ceil(1.0 / voxel_size).astype(int)
 
-    # Generate voxel center coordinates
-    xs = np.arange(dims) * voxel_size + bounds_min[0] + voxel_size * 0.5
-    ys = np.arange(dims) * voxel_size + bounds_min[1] + voxel_size * 0.5
-    zs = np.arange(dims) * voxel_size + bounds_min[2] + voxel_size * 0.5
+    # Generate voxels' lower bounds
+    xs = np.arange(dims) * voxel_size
+    X, Y, Z = np.meshgrid(xs, xs, xs, indexing="ij")
+    lower_corners = np.column_stack((X.ravel(), Y.ravel(), Z.ravel()))
+    is_inside = np.zeros(len(lower_corners), dtype=bool)
 
-    X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
-    points = np.column_stack((X.ravel(), Y.ravel(), Z.ravel()))
+    for i, lower_corner in enumerate(lower_corners):
+        upper_corner = lower_corner + voxel_size
+        # move random points to the interval
+        random_points_in_interval = (
+            random_points_3d * (upper_corner - lower_corner) + lower_corner
+        )
+        is_inside[i] = (
+            check_inside_or_outside_mesh(mesh, random_points_in_interval).mean() > 0.5
+        )
+    return is_inside, dims
 
-    # Point-in-mesh test
-    inside = mesh.contains(points)
-    ic(sum(inside), len(inside))
+
+def mesh_to_boolgrid(
+    mesh: trimesh.Trimesh,
+    voxel_size: float = 0.002,
+    num_samples: int = 10000,
+    grid_name: str = "inside",
+) -> vdb.BoolGrid:
+    """
+    Convert a watertight triangle mesh into a BoolGrid where
+    True = inside mesh, False = outside mesh.
+    """
+    is_inside, resolution = get_regular_grid_occupancy(mesh, voxel_size, num_samples)
 
     # Create BoolGrid
     grid = vdb.BoolGrid(False)
@@ -68,22 +66,19 @@ def mesh_to_boolgrid(
     transform = vdb.createLinearTransform(voxel_size)
     grid.transform = transform
 
-    accessor = grid.getAccessor()
-
     # Write inside voxels
-    idx = np.argwhere(inside).flatten()
+    accessor = grid.getAccessor()
+    idx = np.argwhere(is_inside).flatten()
     for linear_idx in idx:
-        i = int(linear_idx // (dims * dims))
-        j = int((linear_idx // dims) % dims)
-        k = int(linear_idx % dims)
+        i = int(linear_idx // (resolution * resolution))
+        j = int((linear_idx // resolution) % resolution)
+        k = int(linear_idx % resolution)
         accessor.setValueOn((i, j, k), True)
-        # accessor.setValue((i, j, k), True)
 
     return grid
 
 
 def get_monte_carlo_l1_error_openvdb(mesh, bool_grid, num_samples=10000):
-    # Sample random points in and around the mesh bounding box
     num_dimensions = 3
     points = np.random.rand(num_samples, num_dimensions)
 
@@ -104,60 +99,6 @@ def get_monte_carlo_l1_error_openvdb(mesh, bool_grid, num_samples=10000):
 
     # calculate the L1 error
     return (is_inside_mesh ^ is_inside_boolgrid).mean()
-
-
-def downsample_boolgrid(
-    grid: vdb.BoolGrid, scale_factor: int, threshold: float = 0.5
-) -> vdb.BoolGrid:
-    """
-    Downsample a BoolGrid by a scale factor (>1 = fewer voxels).
-    """
-    # Extract active voxel bounding box
-    bbox = grid.evalActiveVoxelBoundingBox()
-    ijk_min, ijk_max = bbox
-
-    dims = (
-        ijk_max[0] - ijk_min[0] + 1,
-        ijk_max[1] - ijk_min[1] + 1,
-        ijk_max[2] - ijk_min[2] + 1,
-    )
-
-    arr = np.zeros(dims, dtype=np.bool_)
-    grid.copyToArray(arr, ijk=ijk_min)
-
-    # Trim to multiple of factor
-    new_dims = (
-        dims[0] // scale_factor,
-        dims[1] // scale_factor,
-        dims[2] // scale_factor,
-    )
-    arr = arr[
-        : new_dims[0] * scale_factor,
-        : new_dims[1] * scale_factor,
-        : new_dims[2] * scale_factor,
-    ]
-
-    # Downsample
-    arr_ds = (
-        arr.reshape(
-            new_dims[0],
-            scale_factor,
-            new_dims[1],
-            scale_factor,
-            new_dims[2],
-            scale_factor,
-        ).mean(axis=(1, 3, 5), dtype=np.float32)
-        > threshold
-    )
-
-    # Resample transform
-    out_grid = vdb.BoolGrid(False)
-    out_grid.transform = vdb.createLinearTransform(
-        grid.transform.voxelSize()[0] * scale_factor
-    )
-
-    out_grid.copyFromArray(arr_ds, ijk=(0, 0, 0))
-    return out_grid
 
 
 if __name__ == "__main__":
@@ -198,33 +139,21 @@ if __name__ == "__main__":
     for special_thingy in special_thingies:
         mesh = special_thingy["mesh"]
         fake_file_id = special_thingy["fake_file_id"]
-
-        fine_boolgrid = mesh_to_boolgrid(mesh)
-        ic(fine_boolgrid.memUsage(), fine_boolgrid.leafCount())
         number_error_samples = 262144
         number_occupancy_samples = args.sobol_samples * 8
-        monte_carlo_l1_error = get_monte_carlo_l1_error_openvdb(
-            mesh,
-            fine_boolgrid,
-            number_error_samples,
-        )
-        vdb.write(
-            f"{special_thingy['fake_file_id']}_openvdb_{fine_boolgrid.leafCount()}.vdb",
-            fine_boolgrid,
-        )
-        scale_factor = 1
-        for allowed_tree_boxes in number_tree_boxes:
-            scale_factor *= 2
+        voxel_size = 0.5
+        current_num_leaves = 0
+        while current_num_leaves < max(number_tree_boxes):
+            voxel_size *= 0.5
             # downsample to the respective number of allowed boxes
-            downsampled_boolgrid = downsample_boolgrid(fine_boolgrid, scale_factor)
-            ic(downsampled_boolgrid.memUsage(), downsampled_boolgrid.leafCount())
+            boolgrid = mesh_to_boolgrid(mesh, voxel_size, number_occupancy_samples)
             monte_carlo_l1_error = get_monte_carlo_l1_error_openvdb(
                 mesh,
-                downsampled_boolgrid,
+                boolgrid,
                 number_error_samples,
             )
-            ic(monte_carlo_l1_error)
+            ic(boolgrid.memUsage(), boolgrid.leafCount(), monte_carlo_l1_error)
             vdb.write(
-                f"{special_thingy['fake_file_id']}_openvdb_{downsampled_boolgrid.leafCount()}.vdb",
-                downsampled_boolgrid,
+                f"{fake_file_id}_openvdb_{boolgrid.leafCount()}.vdb",
+                boolgrid,
             )
