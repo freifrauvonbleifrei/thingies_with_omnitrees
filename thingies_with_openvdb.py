@@ -7,12 +7,11 @@ from icecream import ic
 import numpy as np
 import math
 import openvdb as vdb
-
-# import thingi10k
 import trimesh
 
 from thingies_utils import mesh_to_unit_cube
-from thingies_with_omnitrees_evaluate import check_inside_or_outside_mesh
+from thingies_with_omnitrees_evaluate import check_inside_or_outside_mesh, ErrorL1File
+from special_thingies import get_special_thingies
 
 
 def get_regular_grid_occupancy(
@@ -114,6 +113,17 @@ if __name__ == "__main__":
         help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
         default=512,
     )
+    parser.add_argument(
+        "--plane",
+        action="store_true",
+        help="if present, run only the F25 model, assumes stl file in parent directory",
+    )
+    parser.add_argument(
+        "--thingi_index",
+        type=int,
+        help="index of the thingi to use, if not specified, all thingies will be used",
+        default=None,
+    )
     args = parser.parse_args()
     parsed_number_tree_boxes = args.number_tree_boxes.split("-")
     if len(parsed_number_tree_boxes) == 1:
@@ -127,15 +137,14 @@ if __name__ == "__main__":
     else:
         raise ValueError("wrong formatting for number_tree_boxes")
 
-    special_thingies = [
-        {
-            "mesh": mesh_to_unit_cube(
-                trimesh.load_mesh("../f25_no_wheels.stl", file_type="stl")
-            ),
-            "fake_file_id": 25,  # F25 model
-        }
-    ]
+    special_thingies = get_special_thingies(args.plane)
+    # if thingi_index is given, use only that one
+    if args.thingi_index is not None:
+        special_thingies = [
+            special_thingies[args.thingi_index],
+        ]
 
+    error_file = ErrorL1File(args.sobol_samples)
     for special_thingy in special_thingies:
         mesh = special_thingy["mesh"]
         fake_file_id = special_thingy["fake_file_id"]
@@ -147,12 +156,29 @@ if __name__ == "__main__":
             voxel_size *= 0.5
             # downsample to the respective number of allowed boxes
             boolgrid = mesh_to_boolgrid(mesh, voxel_size, number_occupancy_samples)
+            boolgrid.pruneInactive()
             monte_carlo_l1_error = get_monte_carlo_l1_error_openvdb(
                 mesh,
                 boolgrid,
                 number_error_samples,
             )
             ic(boolgrid.memUsage(), boolgrid.leafCount(), monte_carlo_l1_error)
+
+            error_file.append_row(
+                {
+                    "thingi_file_id": fake_file_id,
+                    "tree": "openvdb",
+                    "allowed_tree_boxes": 0,
+                    "num_sobol_samples": args.sobol_samples,
+                    "num_occupancy_samples": number_occupancy_samples,
+                    "num_error_samples": number_error_samples,
+                    "num_boxes": boolgrid.leafCount(),
+                    "num_boxes_occupied": 0,
+                    "num_tree_nodes": boolgrid.memUsage(),
+                    "tree_number_of_1s": boolgrid.activeVoxelCount(),
+                    "l1error": monte_carlo_l1_error,
+                }
+            )
             vdb.write(
                 f"{fake_file_id}_openvdb_{boolgrid.leafCount()}.vdb",
                 boolgrid,

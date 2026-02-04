@@ -33,59 +33,9 @@ from thingies_with_omnitrees_evaluate import (
     plot_mesh_with_opengl,
 )
 
-
-if __name__ == "__main__":
-    parser = arg.ArgumentParser()
-    parser.add_argument(
-        "number_tree_boxes",
-        type=str,
-        help="number of boxes allowed in tree descriptors, or a range of them when powers of 2 (upper-inclusive)",
-    )
-    parser.add_argument(
-        "--sobol_samples",
-        type=int,
-        help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
-        default=512,
-    )
-    parser.add_argument(
-        "--thingi_index",
-        type=int,
-        help="index of the thingi to use, if not specified, all thingies will be used",
-        default=None,
-    )
-    parser.add_argument(
-        "--tree_index",
-        type=int,
-        help="index of the tree to use, if not specified, all trees will be used",
-        default=None,
-    )
-    parser.add_argument(
-        "--temporal",
-        action="store_true",
-        help="if present, use the temporal 4d version of the thingies",
-    )
-    parser.add_argument(
-        "--plane",
-        action="store_true",
-        help="if present, run only the F25 model, assumes stl file in parent directory",
-    )
-    args = parser.parse_args()
-
-    parsed_number_tree_boxes = args.number_tree_boxes.split("-")
-    if len(parsed_number_tree_boxes) == 1:
-        number_tree_boxes = [int(parsed_number_tree_boxes[0])]
-    elif len(parsed_number_tree_boxes) == 2:
-        number_tree_boxes = []
-        number_boxes = int(parsed_number_tree_boxes[0])
-        while number_boxes <= int(parsed_number_tree_boxes[1]):
-            number_tree_boxes.append(number_boxes)
-            number_boxes *= 2
-    else:
-        raise ValueError("wrong formatting for number_tree_boxes")
-
+def get_special_thingies(plane: bool, use_thingies=True) -> list[dict]:
     special_thingies: list[dict] = []
-
-    if args.plane:
+    if plane:
         special_thingies = [
             {
                 "mesh": mesh_to_unit_cube(
@@ -139,7 +89,6 @@ if __name__ == "__main__":
             }
         )
 
-        use_thingies = True
         if use_thingies:
             thingi10k.init()
             # use special thingies from thingi10k
@@ -161,6 +110,59 @@ if __name__ == "__main__":
                         "fake_file_id": id,
                     }
                 )
+        return special_thingies
+
+
+if __name__ == "__main__":
+    parser = arg.ArgumentParser()
+    parser.add_argument(
+        "number_tree_boxes",
+        type=str,
+        help="number of boxes allowed in tree descriptors, or a range of them when powers of 2 (upper-inclusive)",
+    )
+    parser.add_argument(
+        "--sobol_samples",
+        type=int,
+        help="number of samples for the Sobol criterion, needs to be a power of 2 (and will be multiplied by 8!)",
+        default=512,
+    )
+    parser.add_argument(
+        "--thingi_index",
+        type=int,
+        help="index of the thingi to use, if not specified, all thingies will be used",
+        default=None,
+    )
+    parser.add_argument(
+        "--tree_index",
+        type=int,
+        help="index of the tree to use, if not specified, all trees will be used",
+        default=None,
+    )
+    parser.add_argument(
+        "--temporal",
+        action="store_true",
+        help="if present, use the temporal 4d version of the thingies",
+    )
+    parser.add_argument(
+        "--plane",
+        action="store_true",
+        help="if present, run only the F25 model, assumes stl file in parent directory",
+    )
+    args = parser.parse_args()
+
+    parsed_number_tree_boxes = args.number_tree_boxes.split("-")
+    if len(parsed_number_tree_boxes) == 1:
+        number_tree_boxes = [int(parsed_number_tree_boxes[0])]
+    elif len(parsed_number_tree_boxes) == 2:
+        number_tree_boxes = []
+        number_boxes = int(parsed_number_tree_boxes[0])
+        while number_boxes <= int(parsed_number_tree_boxes[1]):
+            number_tree_boxes.append(number_boxes)
+            number_boxes *= 2
+    else:
+        raise ValueError("wrong formatting for number_tree_boxes")
+
+    special_thingies = get_special_thingies(args.plane)
 
     for special_thingy in special_thingies:
         if not special_thingy["mesh"].is_watertight:
