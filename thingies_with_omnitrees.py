@@ -271,11 +271,7 @@ def tree_voxel_thingi(
             indices_to_refine.add(next_refinement_index)
             num_boxes_added += 2 ** (refinement.count(1)) - 1
 
-        new_descriptor, index_mapping = p.apply_refinements(track_mapping="boxes")
-        discretization = dyada.discretization.Discretization(
-            dyada.linearization.MortonOrderLinearization(),
-            new_descriptor,
-        )
+        discretization, index_mapping = p.apply_refinements(track_mapping="boxes")
 
         # update the priority queue's old entries with the (potentially) changed indices
         new_priority_queue: PriorityQueue = PriorityQueue()
@@ -289,7 +285,7 @@ def tree_voxel_thingi(
                 # we're dealing with a box that was refined but in different dimensions
                 # -> skip
                 continue
-            new_index = index_mapping[i][0]
+            new_index = sorted(index_mapping[i])[0]
             new_priority_queue.put(
                 (i_neg_main_importance, i_neg_importance, i_refinement, new_index)
             )
