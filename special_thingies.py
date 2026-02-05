@@ -33,6 +33,7 @@ from thingies_with_omnitrees_evaluate import (
     plot_mesh_with_opengl,
 )
 
+
 def get_special_thingies(plane: bool, use_thingies=True) -> list[dict]:
     special_thingies: list[dict] = []
     if plane:
@@ -110,7 +111,7 @@ def get_special_thingies(plane: bool, use_thingies=True) -> list[dict]:
                         "fake_file_id": id,
                     }
                 )
-        return special_thingies
+    return special_thingies
 
 
 if __name__ == "__main__":

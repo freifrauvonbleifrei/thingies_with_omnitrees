@@ -162,6 +162,7 @@ if __name__ == "__main__":
                 boolgrid,
                 number_error_samples,
             )
+            current_num_leaves = boolgrid.leafCount()
             ic(boolgrid.memUsage(), boolgrid.leafCount(), monte_carlo_l1_error)
 
             error_file.append_row(
