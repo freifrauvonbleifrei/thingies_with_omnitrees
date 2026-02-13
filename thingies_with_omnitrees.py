@@ -413,7 +413,7 @@ if __name__ == "__main__":
         importance_function = functools.partial(
             get_sobol_importances,
             num_sobol_samples=args.sobol_samples,
-            variance_as_first_criterion=args.two_tier_criterion,
+            variance_as_first_criterion=False,
         )
         skip_function = skip_function_no_importance
 
